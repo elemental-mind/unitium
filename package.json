@@ -1,0 +1,15 @@
+{
+  "name": "unitium",
+  "version": "0.0.5",
+  "description": "Class based unit testing for Node",
+  "main": "/distribution/testium.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Magnus Meseck",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^17.0.6",
+    "fast-glob": "^3.2.7"
+  }
+}
