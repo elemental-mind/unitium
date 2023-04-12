@@ -35,7 +35,6 @@ export class TestRunner
         }
 
         console.log();
-        console.log("exiting");
 
         if (finishedTestSuites.find((suite) => suite.failedTests.length > 0))
             process.exitCode = 1;
