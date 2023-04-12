@@ -1,19 +1,30 @@
 {
   "name": "unitium",
+  "version": "0.1.0",
   "type": "module",
   "description": "Class based unit testing for Node",
+  "keywords": [
+    "test-runner",
+    "unit-testing",
+    "class-based",
+    "typescript"
+  ],
+  "main": "/distribution/unitium.js",
+  "types": "/distribution/unitium.d.ts",
+  "author": "Magnus Meseck",
+  "license": "MIT",
   "bin": {
     "unitium": "/distribution/unitium.js",
     "unitium-tsx": "/distribution/unitium-tsx.js",
     "unitium-ts-node": "/distribution/unitium-ts-node.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepublish": "tsc && echo Bumped version already?"
   },
-  "author": "Magnus Meseck",
-  "license": "MIT",
   "devDependencies": {
-    "@types/node": "^17.0.6",
+    "@types/node": "^17.0.6"
+  },
+  "dependencies": {
     "fast-glob": "^3.2.7"
   }
 }
