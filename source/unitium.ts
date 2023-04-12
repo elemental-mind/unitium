@@ -56,14 +56,16 @@ export class TestRunner
             globs = ["./**/*.{test,spec}.{js,ts}"];
         }
 
-        console.log(globs);
-
-        return await FastGlob(globs,
+        const modules =  await FastGlob(globs,
             {
                 onlyFiles: true,
                 absolute: true,
                 ignore: ['**/node_modules/**']
             });
+
+        const uniqueModules = [...new Set(modules)];
+        
+        return uniqueModules;
     }
 
     private transformAndAddGlobPatternIfFolder(reference: string)
