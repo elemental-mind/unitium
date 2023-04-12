@@ -20,22 +20,43 @@ export class TestRunner
             ignore: ['**/node_modules/**']
         });
 
-        for (const file of files) {
-            this.tests.push(await TestSuite.fromFile(file));
+        //Every file/module may contain multiple Test suites. We load the module and start the tests immediately
+        var moduleLoadPromises: Promise<Promise<TestSuite>[]>[] = [];
+        for (const module of testModules) {
+            moduleLoadPromises.push(this.loadAndRunTestSuites(module));
         }
 
-        const suitePromises = [];
+        //We await the finished loading of all modules and the starting of all the TestSuites.
+        const loadedFilesWithRunningTests = await Promise.all(moduleLoadPromises);
+        const allRunningTestSuites = loadedFilesWithRunningTests.flat();
 
-        for(const testSuite of this.tests)
-        {
-            suitePromises.push(testSuite.run());
-        }
+        //We await the finishing of all the running TestSuites
+        const finishedTestSuites = await Promise.all(allRunningTestSuites);
 
-        await Promise.all(suitePromises);
-
-        for (const testSuite of this.tests) {
+        for (const testSuite of finishedTestSuites) {
             testSuite.printTestResults();
         }
+
+        console.log();
+
+        if(finishedTestSuites.find((suite) => suite.failedTests.length > 0)) 
+            process.exitCode = 1;
+        }
+
+    async loadAndRunTestSuites(file: string)
+    {
+        const module = await import(URL.pathToFileURL(file).href);
+
+        const runningTestSuites = [];
+
+        for(const key in module)
+        {
+            const testSuite = new TestSuite(module[key]);
+            const runningTestSuite = testSuite.run();
+            runningTestSuites.push(runningTestSuite);
+        }
+
+        return runningTestSuites;
     }
 }
 
@@ -91,17 +112,18 @@ class TestSuite
         return tests;
     }
 
-    async run()
+    async run() : Promise<TestSuite>
     {    
         this.isRunning = true;
         let testPromises = [];    
         for (const test of this.tests) {
-            testPromises.push(test.run(this.suite));
+            await test.run(this.suite);
         }
 
-        await Promise.all(testPromises);
         this.isRunning = false;
         this.isCompleted = true;
+
+        return this;
     }
 
     public printTestResults()

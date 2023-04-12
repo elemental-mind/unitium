@@ -5,16 +5,33 @@
 
 import assert from "assert";
 
-
-export default class ExampleTestSuite
+export class BasicExampleTestSuite
 {
-    exampleTest()
+    testThatWillPass()
     {
         assert.equal(1,1);
     }
 
-    aFailingTest()
+    testThatWillFail()
     {
         assert.equal(1,2);
+    }
+
+    #thisIsNotATest()
+    {
+        return 1;
+    }
+}
+
+export class FurtherExampleTestSuite
+{
+    preSchoolMathTest()
+    {
+        assert.equal( 1+1 , 2);
+    }
+
+    exceptionThrowingTest()
+    {
+        throw new Error("Exception was thrown");
     }
 }
