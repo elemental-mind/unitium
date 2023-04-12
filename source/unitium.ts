@@ -13,7 +13,7 @@ export class TestRunner
 
     async runTests()
     {
-        const files = await FastGlob("./**/*.test.js",
+        const testModules = await FastGlob(["./**/*.test.js", "./**/*.test.ts", "./**/*.spec.js", "./**/*.spec.ts"],
         {
             onlyFiles: true,
             absolute: true,
