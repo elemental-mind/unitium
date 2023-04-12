@@ -132,7 +132,8 @@ class TestSuite
         const failedTests = this.failedTests;
         const totalTestCount = passedTests.length + failedTests.length;
 
-        console.group(`${this.name}: Ran ${totalTestCount} tests of which ${failedTests.length} failed.`);
+        console.log();
+        console.group(`${this.name}`);
         
         console.group(`Passed: ${passedTests.length}/${totalTestCount}`);
         passedTests.forEach(t => t.printTestResult());
@@ -148,8 +149,7 @@ class TestSuite
 
 class Test
 {
-    public error?:AssertionError | unknown;
-    public stackTrace?:string;
+    public error?: BaseError;
     public isRunning = false;
     public isCompleted = false;
 
@@ -164,7 +164,7 @@ class Test
         {
             await testSuiteObject[this.testFunctionName]();
         }
-        catch(e:AssertionError | unknown)
+        catch(e:BaseError | any)
         {
             this.error = e;
         }
@@ -176,15 +176,27 @@ class Test
     {
         if(!this.error)
         {
-            console.log("✔️ " + this.testFunctionName);
+            console.log("✔️    " + camelToNormal(this.testFunctionName));
         }
         else
         {
-            console.group("❌ " + this.testFunctionName);
-            console.log(this.error);
+            const errorPosition = this.error.stack.split("\n")[1].trim();
+            const filePosition = /\(((.*?)\:(\d+)\:(\d+))\)/.exec(errorPosition)!;
+            console.group("❌   " + camelToNormal(this.testFunctionName) + " --> " + this.error.name + ": " + (this.error.message || "unkown")  + " --> \"" + filePosition[1] + "\"");
+            // console.log(this.error);
             console.groupEnd();
         }
     }
+}
+
+function camelToNormal(camelCaseString: string) {
+    return camelCaseString.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+}
+
+interface BaseError {
+    name: string,
+    message: string,
+    stack: string
 }
 
 const testRunner = new TestRunner();
