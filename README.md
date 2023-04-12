@@ -117,6 +117,17 @@ You may want to add the following line to your `package.json`:
     }
 ...
 ```
+
+### Running tests in specific files/directories
+
+By default Unitium will scan your entire working directory for testing files.
+
+You can specify certain files or folders to search for tests in:
+```
+    npx unitium ./src/module.test.ts ./testingFolder ./anotherTestingFolder/
+```
+If you specify files or folders only these specified entities will be searched for tests.
+
 ## Typescript support
 
 Using the standard `unitium` command on typescript projects will lead to module resolution errors as Unitium does not do any transpilation etc. To resolve this, there are two additional commands supplied: `unitium-tsx` and `unitium-ts-node`.
