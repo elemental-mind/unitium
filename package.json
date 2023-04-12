@@ -1,8 +1,12 @@
 {
   "name": "unitium",
-  "version": "0.0.5",
+  "type": "module",
   "description": "Class based unit testing for Node",
-  "main": "/distribution/testium.js",
+  "bin": {
+    "unitium": "/distribution/unitium.js",
+    "unitium-tsx": "/distribution/unitium-tsx.js",
+    "unitium-ts-node": "/distribution/unitium-ts-node.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

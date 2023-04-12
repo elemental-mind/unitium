@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // Copyright (c) 2022 Magnus Meseck
 // 
 // This software is released under the MIT License.
@@ -39,7 +41,7 @@ export class TestRunner
 
         if(finishedTestSuites.find((suite) => suite.failedTests.length > 0)) 
             process.exitCode = 1;
-        }
+    }
 
     async loadAndRunTestSuites(file: string)
     {
