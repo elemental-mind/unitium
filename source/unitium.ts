@@ -9,8 +9,6 @@ import URL from 'url';
 
 export class TestRunner
 {
-    public tests:TestSuite[] = [];
-
     async runTests()
     {
         const testModules = await FastGlob(["./**/*.test.js", "./**/*.test.ts", "./**/*.spec.js", "./**/*.spec.ts"],
@@ -83,18 +81,6 @@ class TestSuite
     public get passedTests()
     {
         return this.tests.filter(t => (t.isCompleted && t.error == undefined));
-    }
-
-    static async fromFile(filePath:string)
-    {
-        const module = await import(URL.pathToFileURL(filePath).href);
-        
-        if(!module.default)
-        {
-            throw ("No default export for the testing module that is recognised as a testing suite.");
-        }
-
-        return new TestSuite(module.default);
     }
 
     private getSuiteTests()
