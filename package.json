@@ -30,9 +30,9 @@
     "unitium-ts-node": "/distribution/unitium-ts-node.js"
   },
   "scripts": {
-    "dry-update": "tsc",
-    "patch": "tsc && npm version patch && git push && npm publish",
-    "release": "tsc && npm version minor && git push && npm publish"
+    "dry-update": "tsc && xcopy /E /I /Y source\\assets distribution\\assets",
+    "patch": "tsc && xcopy /E /I /Y source\\assets distribution\\assets && npm version patch && git push && npm publish",
+    "release": "tsc && xcopy /E /I /Y source\\assets distribution\\assets && npm version minor && git push && npm publish"
   },
   "devDependencies": {
     "@types/node": "^17.0.6",
