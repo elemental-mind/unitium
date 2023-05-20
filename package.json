@@ -9,8 +9,6 @@
     "class-based",
     "typescript"
   ],
-  "main": "/distribution/unitium-node.js",
-  "types": "/distribution/unitium-node.d.ts",
   "exports": {
     ".": {
       "types": "./distribution/unitium-node.d.ts",
