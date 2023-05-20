@@ -1,0 +1,55 @@
+@import url("https://unpkg.com/marx-css/css/marx.min.css");
+
+.unitium-module
+{
+    margin: 50px auto;
+    padding: 50px;
+    border-radius: 5px;
+    border: 1px solid gray;
+}
+
+.unitium-module > code
+{
+    color: gray;
+}
+
+.unitium-test-suite>table
+{
+    width: 100%;
+}
+
+.unitium-test-result > td:nth-child(1)
+{
+    width: 200px;
+}
+
+.unitium-test-result > td:nth-child(3)
+{
+    width: 20px;
+}
+
+.unitium-test-result details, .unitium-test-result summary
+{
+    margin-bottom: 0;
+}
+
+.unitium-test-suite > table td:nth-child(1)
+{
+    width: 200px;
+}
+
+.unitium-diff-table td {
+    width: 50%;
+}
+
+.unitium-diff-table td:nth-child(1)
+{
+    color: green;
+    background-color: rgba(0, 128, 0, 0.151);
+}
+
+.unitium-diff-table td:nth-child(2)
+{
+    color: darkred;
+    background-color: rgba(255, 0, 0, 0.212);
+}
