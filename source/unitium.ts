@@ -1,116 +1,50 @@
-#!/usr/bin/env node
-
 // Copyright (c) 2022 Magnus Meseck
 // 
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { AssertionError } from 'assert';
-import FastGlob from 'fast-glob';
-import URL from 'url';
-
-export class TestRunner
+export abstract class TestRunner<T extends TestSuite>
 {
+    testModuleNames : string[] = [];
+    testSuites : T[] = [];
+
     async runTests()
     {
-        const testModules = await this.getTestModules();
-
+        //We first gather all the filenames/urls of modules that contain tests.
+        this.testModuleNames = await this.getModuleNames();
         //Every file/module may contain multiple Test suites. We load the module and start the tests immediately
-        var moduleLoadPromises: Promise<Promise<TestSuite>[]>[] = [];
-        for (const module of testModules)
-        {
-            moduleLoadPromises.push(this.loadAndRunTestSuites(module));
-        }
+        const moduleLoadPromises = this.testModuleNames.map(
+            (moduleName) => 
+                this.loadModuleAndRunTestSuites(moduleName));
+        //We await the finished loading of all modules and the starting of all the TestSuites. 
+        const testSuitesGroupedByModule = await Promise.all(moduleLoadPromises);
+        //As loaded modules can contain multiple test suites we need to unwrap these and wait for them. We want to await finishing of all tests.
+        await Promise.all(testSuitesGroupedByModule.flat());
 
-        //We await the finished loading of all modules and the starting of all the TestSuites.
-        const loadedFilesWithRunningTests = await Promise.all(moduleLoadPromises);
-        const allRunningTestSuites = loadedFilesWithRunningTests.flat();
-
-        //We await the finishing of all the running TestSuites
-        const finishedTestSuites = await Promise.all(allRunningTestSuites);
-
-        for (const testSuite of finishedTestSuites)
-        {
+        //All tests are finished and we can write the results to the console.
+        for (const testSuite of this.testSuites)
             testSuite.printTestResults();
-        }
-
-        console.log();
-
-        if (finishedTestSuites.find((suite) => suite.failedTests.length > 0))
-            process.exitCode = 1;
     }
 
-    private async getTestModules()
-    {
-        const [executable, script, ...fileSystemReferences] = process.argv;
+    protected abstract getModuleNames() : Promise<string[]>;
 
-        var globs;
-
-        if (fileSystemReferences.length)
-        {
-            globs = fileSystemReferences.map(fileSystemReference => this.transformAndAddGlobPatternIfFolder(fileSystemReference));
-        }
-        else
-        {
-            globs = ["./**/*.{test,spec}.{js,ts}"];
-        }
-
-        const modules =  await FastGlob(globs,
-            {
-                onlyFiles: true,
-                absolute: true,
-                ignore: ['**/node_modules/**']
-            });
-
-        const uniqueModules = [...new Set(modules)];
-        
-        return uniqueModules;
-    }
-
-    private transformAndAddGlobPatternIfFolder(reference: string)
-    {
-        if (reference.endsWith(".js") || reference.endsWith(".ts"))
-        {
-            // We are dealing with a file and leave it untouched, only replacing windows slashes with unix slashes for fast-glob
-            return reference.replace("\\", "/");
-        }
-        else
-        {
-            //We assume we are dealing with a directory and need to add a glob pattern to it
-            return reference.replace("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
-        }
-    }
-
-    private async loadAndRunTestSuites(file: string)
-    {
-        const module = await import(URL.pathToFileURL(file).href);
-
-        const runningTestSuites = [];
-
-        for (const key in module)
-        {
-            const testSuite = new TestSuite(module[key]);
-            const runningTestSuite = testSuite.run();
-            runningTestSuites.push(runningTestSuite);
-        }
-
-        return runningTestSuites;
-    }
+    protected abstract loadModuleAndRunTestSuites(moduleName: string): Promise<Promise<T>[]>;
 }
 
-class TestSuite
+export class TestSuite
 {
     public name: string;
-    private suite: any;
-    public tests: Test[];
+    protected suite: any;
+    public testFunctions: string[];
+    public tests: Test[] = [];
     public isRunning = false;
     public isCompleted = false;
 
-    constructor(testSuiteConstructor: { new(): any })
+    constructor(testClassConstructor: { new(): any })
     {
-        this.suite = new testSuiteConstructor();
+        this.suite = new testClassConstructor();
         this.name = Object.getPrototypeOf(this.suite).constructor.name;
-        this.tests = this.getSuiteTests();
+        this.testFunctions = this.getTestFunctionNames();
     };
 
     public get failedTests()
@@ -123,7 +57,7 @@ class TestSuite
         return this.tests.filter(t => (t.isCompleted && t.error == undefined));
     }
 
-    private getSuiteTests()
+    private getTestFunctionNames()
     {
         const testFunctions = Object.getOwnPropertyNames(Object.getPrototypeOf(this.suite));
         const tests = [];
@@ -132,17 +66,22 @@ class TestSuite
         {
             if (testFunction != "constructor")
             {
-                tests.push(new Test(testFunction));
+                tests.push(testFunction);
             }
         }
 
         return tests;
     }
 
-    async run(): Promise<TestSuite>
+    protected convertFunctionToTest(functionName: string)
     {
+        return new Test(functionName);
+    }
+
+    async run()
+    {
+        this.tests = this.testFunctions.map(functionName => this.convertFunctionToTest(functionName));
         this.isRunning = true;
-        let testPromises = [];
         for (const test of this.tests)
         {
             await test.run(this.suite);
@@ -161,7 +100,7 @@ class TestSuite
         const totalTestCount = passedTests.length + failedTests.length;
 
         console.log();
-        console.group(`${this.name}`);
+        console.group(`${capitalCase(camelToNormal(this.name))}`);
 
         console.group(`Passed: ${passedTests.length}/${totalTestCount}`);
         passedTests.forEach(t => t.printTestResult());
@@ -175,7 +114,7 @@ class TestSuite
     }
 }
 
-class Test
+export class Test
 {
     public error?: BaseError;
     public isRunning = false;
@@ -204,30 +143,37 @@ class Test
     {
         if (!this.error)
         {
-            console.log("✔️    " + camelToNormal(this.testFunctionName));
+            console.log("✔️    " + titleCase(camelToNormal(this.testFunctionName)));
         }
         else
         {
             const errorPosition = this.error.stack.split("\n")[1].trim();
             const filePosition = /\(((.*?)\:(\d+)\:(\d+))\)/.exec(errorPosition)!;
-            console.group("❌   " + camelToNormal(this.testFunctionName) + " --> " + this.error.name + ": " + (this.error.message || "unkown") + " --> \"" + filePosition[1] + "\"");
+            console.group("❌   " + titleCase(camelToNormal(this.testFunctionName)) + " --> " + this.error.name + ": " + (this.error.message || "unkown") + " --> \"" + filePosition[1] + "\"");
             // console.log(this.error);
             console.groupEnd();
         }
     }
 }
 
-function camelToNormal(camelCaseString: string)
+export function camelToNormal(camelCaseString: string)
 {
     return camelCaseString.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+}
+
+export function titleCase(text: string){
+    return text[0].toUpperCase() + text.slice(1).toLowerCase();
+}
+
+export function capitalCase(text: string){
+    return text.split(" ").map(s => titleCase(s)).join(" ");
 }
 
 interface BaseError
 {
     name: string,
     message: string,
-    stack: string
+    stack: string,
+    actual?: any,
+    expects?: any
 }
-
-const testRunner = new TestRunner();
-testRunner.runTests();
