@@ -2,19 +2,30 @@
   "name": "unitium",
   "version": "0.1.5",
   "type": "module",
-  "description": "Class based unit testing for Node",
+  "description": "Class based unit testing for Node & the browser",
   "keywords": [
     "test-runner",
     "unit-testing",
     "class-based",
     "typescript"
   ],
-  "main": "/distribution/unitium.js",
-  "types": "/distribution/unitium.d.ts",
+  "main": "/distribution/unitium-node.js",
+  "types": "/distribution/unitium-node.d.ts",
+  "exports": {
+    ".": {
+      "types": "./distribution/unitium-node.d.ts",
+      "import": "./distribution/unitium-node.js"
+    },
+    "./browser": {
+      "types": "./distribution/unitium-browser.d.ts",
+      "import": "./distribution/unitium.browser.js"
+    },
+    "./style": "./distribution/assets/unitium.css"
+  },
   "author": "Magnus Meseck",
   "license": "MIT",
   "bin": {
-    "unitium": "/distribution/unitium.js",
+    "unitium": "/distribution/unitium-node.js",
     "unitium-tsx": "/distribution/unitium-tsx.js",
     "unitium-ts-node": "/distribution/unitium-ts-node.js"
   },
