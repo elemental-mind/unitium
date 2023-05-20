@@ -17,6 +17,12 @@ export class BasicExampleTestSuite
         assert.equal(1,2);
     }
 
+    async longRunningTest()
+    {
+        await new Promise(resolve => setTimeout(() => resolve(null), 5000))
+        assert.equal(true, true);
+    }
+
     #thisIsNotATest()
     {
         return 1;
