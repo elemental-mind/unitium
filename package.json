@@ -8,17 +8,11 @@
     "class-based",
     "typescript"
   ],
-  "main": "./distribution/unitium-node.js",
-  "types": "./distribution/unitium-node.d.ts",
-  "module": "./distribution/unitium-node.js",
+  "types": "./distribution/unitium-browser.d.ts",
+  "module": "./distribution/unitium-browser.js",
   "exports": {
     ".": {
-      "types": "./distribution/unitium-node.d.ts",
-      "import": "./distribution/unitium-node.js"
-    },
-    "./browser": {
       "types": "./distribution/unitium-browser.d.ts",
-      "require": "./distribution/unitium-browser.js",
       "import": "./distribution/unitium-browser.js"
     },
     "./style": "./distribution/assets/unitium.css"
