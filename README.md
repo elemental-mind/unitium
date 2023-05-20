@@ -216,11 +216,11 @@ Alternatively you can download unitium from an npm-based CDN:
 ...
 <head>
     ...
-    <link rel="stylesheet" href="https://unpkg.com/unitium/style">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/unitium/distribution/assets/unitium.css">
     ...
 </head>
 <body>
-    <script src="https://unpkg.com/unitium/browser" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/unitium" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
@@ -241,7 +241,7 @@ Unitium needs to know which files to test in the browser. Unitium will identify 
 <script test src="test-file-1.ts" type="module"></script>
 <script test src="test-file-2.ts" type="module"></script>
 ```
-In the above example only the last 2 elements are considered test modules as they have a `src`-attribute and a `test` attribute.
+In the above example only the last 2 elements are considered test modules as they have a `src`-attribute and a `test`-attribute.
 
 You can not provide non-modules as test files. Also inline-modules are currently not supported. 
 
@@ -253,11 +253,11 @@ A test file may have multiple `test suites`, but also other non-test-suite class
 Private members (#-prepended) will not be interpreted as tests and can be used as utility functions or as data variables.
 
 ### Choosing an assertion library
-As browser environments do not include a native `assert` module you need to bring your own assert library. [uvu\assert](https://github.com/lukeed/uvu) is pretty lightweight and easy to use, but you can use any other assertion library like Chai etc. that throws upon false assertions.
+As browser environments do not include a native `assert` module you need to bring your own assert library. [uvu/assert](https://github.com/lukeed/uvu) is pretty lightweight and easy to use, but you can use any other assertion library like Chai etc. that throws upon false assertions.
 Output-support may vary, but feel free to raise an issue if you like to have better support for a common library.
 
 ```typescript
-import assert from "assert";   // <-- feel free to use any assertion library
+import assert from "uvu/assert";   // <-- feel free to use any assertion library
 
 export class TestSuite         // <-- "export" test suites
 {
