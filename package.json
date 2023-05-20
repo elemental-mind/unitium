@@ -24,7 +24,8 @@
     "release": "tsc && npm version minor && git push && npm publish"
   },
   "devDependencies": {
-    "@types/node": "^17.0.6"
+    "@types/node": "^17.0.6",
+    "uvu": "^0.5.6"
   },
   "dependencies": {
     "fast-glob": "^3.2.7"
