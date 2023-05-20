@@ -11,8 +11,10 @@
   "types": "./distribution/unitium-browser.d.ts",
   "module": "./distribution/unitium-browser.js",
   "exports": {
-    "./browser": "./distribution/unitium-browser.js",
-    "./style": "./distribution/assets/unitium.css"
+    ".": {
+      "types": "./distribution/unitium-browser.d.ts",
+      "import": "./distribution/unitium-browser.js"
+    }
   },
   "author": "Magnus Meseck",
   "license": "MIT",
