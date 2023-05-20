@@ -14,13 +14,17 @@
   "exports": {
     ".": {
       "types": "./distribution/unitium-node.d.ts",
+      "require": null,
       "import": "./distribution/unitium-node.js"
     },
     "./browser": {
       "types": "./distribution/unitium-browser.d.ts",
-      "import": "./distribution/unitium.browser.js"
+      "require": "./distribution/unitium-browser.js",
+      "import": "./distribution/unitium-browser.js"
     },
-    "./style": "./distribution/assets/unitium.css"
+    "./style": {
+      "require": "./distribution/assets/unitium.css"
+    }
   },
   "author": "Magnus Meseck",
   "license": "MIT",
