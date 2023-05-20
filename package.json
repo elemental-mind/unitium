@@ -47,5 +47,10 @@
     "type": "git",
     "url": "https://github.com/elemental-mind/unitium.git"
   },
-  "homepage": "https://github.com/elemental-mind/unitium#readme"
+  "homepage": "https://github.com/elemental-mind/unitium#readme",
+  "_moduleAliases": {
+    "unitium": "distribution/unitium-node.js",
+    "unitium/browser": "distribution/unitium-browser.js",
+    "unitum/style": "distribution/assets/unitium.css"
+  }
 }
