@@ -8,6 +8,7 @@
     "class-based",
     "typescript"
   ],
+  "type": "module",
   "types": "./distribution/unitium-browser.d.ts",
   "module": "./distribution/unitium-browser.js",
   "main": "./distribution/unitium-browser.js",
