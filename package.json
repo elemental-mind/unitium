@@ -1,6 +1,6 @@
 {
   "name": "unitium",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "description": "Class based unit testing for Node & the browser",
   "keywords": [
     "test-runner",
