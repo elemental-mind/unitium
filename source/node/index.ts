@@ -3,7 +3,7 @@
 import FastGlob from 'fast-glob';
 import URL from 'url';
 
-import { TestRunner, TestSuite } from './unitium.js';
+import { TestRunner, TestSuite } from '../unitium.js';
 
 export class NodeTestRunner extends TestRunner<TestSuite>
 {

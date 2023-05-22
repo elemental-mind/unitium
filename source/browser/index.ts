@@ -1,4 +1,4 @@
-import { Test, TestRunner, TestSuite, camelToNormal, titleCase, capitalCase } from "./unitium.js";
+import { Test, TestRunner, TestSuite, camelToNormal, titleCase, capitalCase } from "../unitium.js";
 
 export class BrowserTestRunner extends TestRunner<BrowserTestSuite>
 {
