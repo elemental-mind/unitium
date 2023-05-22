@@ -1,4 +1,4 @@
-# Make your tests more readable - code them in classes
+# Organize your unit tests in classes
 ## Get started straight away
 [Node Quickstart](#use-node) | [Browser Quickstart](#use-browser)
 ## Introduction
@@ -40,10 +40,16 @@ Basic Example Test Suite
 
 ```
 
-Public member functions will be interpreted as tests and function names are destructured into space seperated test descriptors.
+## In a glance
 
-You are free to use any assertion library - as long as it throws exceptions on assertion errors.
-
+- Every exported class of a test file is a test suite
+- Public member functions of test suites/exported classes will be interpreted as tests
+    - If you want a member not to be interpreted as a test make it private through a prepended `#` e.g. `#noTest() {...}`.
+- The class and function names serve as descriptors and will be de-camelized in the console output: 
+    - `class IAmATestSuite` will become `I Am A Test Suite`
+    - `shouldPassThisTest()` becomes `Should pass this test`
+- Every test run will be served a "fresh" class instance - its constructor will be run before every member function call.
+    - If you do not desire this behaviour, decorate your class with the `@Sequential` decorator. The class will then preserve its state between function calls. Test/functions will be called in order of appearance in the class.
 
 <a id="use-node"></a>
 
@@ -180,11 +186,11 @@ If you are lucky and your build tool supports it you can include the package spe
 ...
 <head>
     ...
-    <link rel="stylesheet" href="unitium/style">
+    <link rel="stylesheet" href="unitium/assets/unitium.css">
     ...
 </head>
 <body>
-    <script src="unitum/browser" type="module"></script>
+    <script src="unitium" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
