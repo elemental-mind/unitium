@@ -217,16 +217,16 @@ Otherwise reference the files from node_modules directly:
 ```
 
 #### CDN
-Alternatively you can download unitium from an npm-based CDN:
+Alternatively you can download Unitium from an npm-based CDN:
 ```html
 ...
 <head>
     ...
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/unitium/distribution/assets/unitium.css">
+    <link rel="stylesheet" href="https://unpkg.com/unitium/distribution/browser/style.css">
     ...
 </head>
 <body>
-    <script src="https://cdn.jsdelivr.net/npm/unitium" type="module"></script>
+    <script src="https://unpkg.com/unitium/distribution/browser/index.js" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
