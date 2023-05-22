@@ -10,6 +10,8 @@ export abstract class TestRunner<T extends TestSuite>
 
     async runTests()
     {
+        console.log("Running Tests...");
+
         //We first gather all the filenames/urls of modules that contain tests.
         this.testModuleNames = await this.getModuleNames();
         //Every file/module may contain multiple Test suites. We load the module and start the tests immediately
@@ -34,16 +36,14 @@ export abstract class TestRunner<T extends TestSuite>
 export class TestSuite
 {
     public name: string;
-    protected suite: any;
     public testFunctions: string[];
     public tests: Test[] = [];
     public isRunning = false;
     public isCompleted = false;
 
-    constructor(testClassConstructor: { new(): any })
+    constructor(protected testClassConstructor: { new(): any })
     {
-        this.suite = new testClassConstructor();
-        this.name = Object.getPrototypeOf(this.suite).constructor.name;
+        this.name = testClassConstructor.name;
         this.testFunctions = this.getTestFunctionNames();
     };
 
@@ -59,12 +59,12 @@ export class TestSuite
 
     private getTestFunctionNames()
     {
-        const testFunctions = Object.getOwnPropertyNames(Object.getPrototypeOf(this.suite));
+        const testFunctions = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
         const tests = [];
 
         for (const testFunction of testFunctions)
         {
-            if (testFunction != "constructor")
+            if (testFunction != "constructor" && typeof this.testClassConstructor.prototype[testFunction] === "function")
             {
                 tests.push(testFunction);
             }
@@ -80,11 +80,20 @@ export class TestSuite
 
     async run()
     {
+        const metaData = this.testClassConstructor.prototype.__meta;
+        let sequentialInstance;
+
         this.tests = this.testFunctions.map(functionName => this.convertFunctionToTest(functionName));
         this.isRunning = true;
+
+        if(metaData?.isSequential)
+            sequentialInstance = new this.testClassConstructor();
+        
         for (const test of this.tests)
         {
-            await test.run(this.suite);
+            metaData?.beforeEach?.();
+            await test.run(metaData?.isSequential?sequentialInstance:new this.testClassConstructor());
+            metaData?.afterEach?.();
         }
 
         this.isRunning = false;

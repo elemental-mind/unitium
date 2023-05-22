@@ -9,23 +9,28 @@
     "typescript"
   ],
   "type": "module",
-  "types": "./distribution/unitium-browser.d.ts",
-  "module": "./distribution/unitium-browser.js",
-  "main": "./distribution/unitium-browser.js",
+  "types": "./distribution/index.d.ts",
+  "module": "./distribution/index.js",
+  "main": "./distribution/index.js",
   "exports": {
-    ".": "./distribution/unitium-browser.js"
+    ".": {
+      "types": "./distribution/index.d.ts",
+      "import": "./distribution/index.js"
+    },
+    "./browser/*": "./distribution/browser/*"
   },
   "author": "Magnus Meseck",
   "license": "MIT",
   "bin": {
-    "unitium": "/distribution/unitium-node.js",
-    "unitium-tsx": "/distribution/unitium-tsx.js",
-    "unitium-ts-node": "/distribution/unitium-ts-node.js"
+    "unitium": "/distribution/node/index.js",
+    "unitium-tsx": "/distribution/node/exec-tsx.js",
+    "unitium-ts-node": "/distribution/node/exec-ts-node.js"
   },
   "scripts": {
-    "dry-update": "tsc && xcopy /E /I /Y source\\assets distribution\\assets",
-    "patch": "tsc && xcopy /E /I /Y source\\assets distribution\\assets && npm version patch && git push && npm publish",
-    "release": "tsc && xcopy /E /I /Y source\\assets distribution\\assets && npm version minor && git push && npm publish"
+    "dry-update": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css",
+    "patch": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version patch && git push && npm publish",
+    "release": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version minor && git push && npm publish",
+    "test": "tsx ./source/node/index.ts ./examples/node"
   },
   "devDependencies": {
     "@types/node": "^17.0.6",
