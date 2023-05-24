@@ -1,5 +1,6 @@
 import * as assert from "uvu/assert";
-import { Sequential, BeforeEach, AfterEach } from "unitium"
+// normally you just include `import { xxx } from "unitium"`
+import { Sequential, BeforeEach, AfterEach } from "../../source/index.js"
 
 export class BasicExampleTests
 {
@@ -76,6 +77,10 @@ let moduleVariable = 0;
 @AfterEach(() => console.log("tested"))
 export class BeforeEachTest
 {
+    constructor()
+    {
+    }
+
     setModuleVariable()
     {
         moduleVariable = 100;
