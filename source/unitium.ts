@@ -156,7 +156,7 @@ export class Test
         }
         else
         {
-            const errorPosition = this.error.stack.split("\n")[1].trim();
+            const errorPosition = this.error.stack.split("\n    at")[1].trim();
             const filePosition = /\(((.*?)\:(\d+)\:(\d+))\)/.exec(errorPosition)!;
             console.group("❌   " + titleCase(camelToNormal(this.testFunctionName)) + " --> " + this.error.name + ": " + (this.error.message || "unkown") + " --> \"" + filePosition[1] + "\"");
             // console.log(this.error);
