@@ -1,23 +1,55 @@
 #!/usr/bin/env node
 
 import FastGlob from 'fast-glob';
-import URL from 'url';
+import { SoftwareSpecification, TestModule, TestRunner, TestSuite } from '../unitium.js';
 
-import { TestRunner, TestSuite } from '../unitium.js';
+const defaultNodeOptions = {
+    silent: true,
+    outputJSON: false
+};
 
-export class NodeTestRunner extends TestRunner<TestSuite>
+type NodeRunnerOptions = typeof defaultNodeOptions;
+
+export class NodeTestRunner extends TestRunner
 {
-    async runTests()
+    constructor(
+        specification: SoftwareSpecification, 
+        public options?: typeof defaultNodeOptions)
     {
-        super.runTests();
-
-        console.log();
-
-        if (this.testSuites.find((suite) => suite.failedTests.length > 0))
-            process.exitCode = 1;
+        super(specification);
+        this.options = defaultNodeOptions;
+        if(options) Object.assign(this.options, options);
     }
 
-    protected async getModuleNames()
+    async runTests()
+    {
+        await super.runAllTests();
+
+        if(!this.options?.silent)
+        {
+            if(this.options?.outputJSON)
+                console.log(this.specification.serialize)
+            else
+                this.specification.printResults();
+        }
+    }
+}
+
+export class NodeAppSpecification extends SoftwareSpecification
+{
+    async load(): Promise<TestModule[]> {
+        const moduleURLs = await this.getModuleURLs();
+        const moduleLoadPromises = [];
+
+        for (const modulePath of moduleURLs) 
+            moduleLoadPromises.push(this.loadModule(modulePath))
+
+        await Promise.all(moduleLoadPromises);
+
+        return this.testModules;
+    }
+
+    protected async getModuleURLs()
     {
         const [executable, script, ...fileSystemReferences] = process.argv;
 
@@ -40,8 +72,9 @@ export class NodeTestRunner extends TestRunner<TestSuite>
             });
 
         const uniqueModules = [...new Set(modules)];
+        const moduleFileURLs = uniqueModules.map(module => `file://${module}`)
         
-        return uniqueModules;
+        return moduleFileURLs;
     }
 
     private transformAndAddGlobPatternIfFolder(reference: string)
@@ -57,24 +90,22 @@ export class NodeTestRunner extends TestRunner<TestSuite>
             return reference.replace("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
         }
     }
-
-    protected async loadModuleAndRunTestSuites(file: string)
-    {
-        const module = await import(URL.pathToFileURL(file).href);
-
-        const testSuiteRuns = [];
-
-        for (const key in module)
-        {
-            const testSuite = new TestSuite(module[key]);
-            this.testSuites.push(testSuite);
-            const testSuiteRun = testSuite.run();
-            testSuiteRuns.push(testSuiteRun);
-        }
-
-        return testSuiteRuns;
-    }
 }
 
-const testRunner = new NodeTestRunner();
-testRunner.runTests();
+async function runTests()
+{
+    const cliOptions = {
+        silent: process.argv.includes("--silent") || undefined,
+        outputJSON: process.argv.includes("--json") || undefined,
+    } as NodeRunnerOptions;
+
+    const spec = new NodeAppSpecification();
+    await spec.load();
+    const runner = new NodeTestRunner(spec, cliOptions);
+    await runner.runTests();
+  
+    if(spec.tests.some(test => test.error != undefined))
+        process.exitCode = 1;
+}
+
+runTests();

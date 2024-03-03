@@ -2,33 +2,40 @@ import { Awaitable } from "deferium";
 
 export abstract class TestRunner extends Awaitable
 {
+    public specification: SoftwareSpecification;
+
     testingCompleted = new Awaitable();
     constructor(
-        public specification: SoftwareSpecification
+        loadedSpecification: SoftwareSpecification
     )
     {
         super();
+        this.specification = loadedSpecification;
     }
 
-    get testResultReport()
-    {
-        return {};
-    }
+    abstract runTests(): void;
 
-    async runAllTests()
+    protected async runAllTests()
     {
-        const testModules = await this.specification.load();
-
         const moduleRuns = [];
-        for (const module of testModules)
+        for (const module of this.specification.testModules)
             moduleRuns.push(module.run());
         await Promise.all(moduleRuns);
 
+        this.specification.runCompleted.resolve();
         this.testingCompleted.resolve();
     }
 }
 
-export abstract class SoftwareSpecification
+export abstract class TestCommons
+{
+    runCompleted = new Awaitable();
+
+    abstract printResults(): void;
+    abstract serialize(): any;
+}
+
+export abstract class SoftwareSpecification extends TestCommons
 {
     public testModules: TestModule[] = [];
 
@@ -43,24 +50,44 @@ export abstract class SoftwareSpecification
     }
 
     abstract load(): Promise<TestModule[]>;
+
+    protected async loadModule(path: string)
+    {
+        this.testModules.push(new TestModule(path, await import(/*@vite-ignore*/path)));
+    }
+
+    printResults()
+    {
+        console.log("Testing finished.");
+
+        const totalTestCount = this.tests.length;
+        const failedTestCount = this.tests.filter(test => test.error !== undefined).length;
+
+        if(failedTestCount === 0)
+            console.log("All tests passed.");
+        else
+            console.log(`${failedTestCount} of ${totalTestCount} tests failed.`)
+
+        for (const module of this.testModules) {
+            module.printResults();
+        }
+    }
+
+    serialize()
+    {
+        return {
+            modules: this.testModules.map(module => module.serialize())
+        };
+    }
 }
 
-export abstract class SpecificationFragment
-{
-    runCompleted = new Awaitable();
-
-    abstract printResults(): void;
-    abstract serialize(): any;
-}
-
-export class TestModule extends SpecificationFragment
+export class TestModule extends TestCommons
 {
     testSuites: TestSuite[] = [];
 
-    static async from(urlOrFileName: string)
+    get tests()
     {
-        const module = await import(urlOrFileName);
-        return new TestModule(urlOrFileName, module);
+        return this.testSuites.flatMap(suite => suite.tests);
     }
 
     constructor(
@@ -81,9 +108,14 @@ export class TestModule extends SpecificationFragment
             suiteRuns.push(suite.run());
 
         await Promise.all(suiteRuns);
+
+        this.runCompleted.resolve();
     }
 
-    printResults() { };
+    printResults() { 
+        for (const suite of this.testSuites)
+            suite.printResults();
+    };
     serialize()
     {
         return {
@@ -93,8 +125,9 @@ export class TestModule extends SpecificationFragment
     }
 }
 
-export class TestSuite extends SpecificationFragment
+export class TestSuite extends TestCommons
 {
+    public className: string;
     public name: string;
     public tests: Test[] = [];
 
@@ -103,7 +136,8 @@ export class TestSuite extends SpecificationFragment
         protected testClassConstructor: { new(): any; })
     {
         super();
-        this.name = testClassConstructor.name;
+        this.className = testClassConstructor.name;
+        this.name = capitalCase(camelToNormal(this.className));
 
         const testFunctionNames = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
 
@@ -120,29 +154,40 @@ export class TestSuite extends SpecificationFragment
     async run()
     {
         const metaData = this.testClassConstructor.prototype.__meta;
-        let sequentialInstance;
 
         if (metaData?.isSequential)
-            sequentialInstance = new this.testClassConstructor();
-
-        for (const test of this.tests)
         {
-            metaData?.beforeEach?.();
-            await test.run(metaData?.isSequential ? sequentialInstance : new this.testClassConstructor());
-            metaData?.afterEach?.();
+            const testInstance = new this.testClassConstructor();
+            for (const test of this.tests)
+            {
+                metaData?.beforeEach?.();
+                await test.run(testInstance);
+                metaData?.afterEach?.();
+            }
         }
+        else
+        {
+            for (const test of this.tests)
+            {
+                metaData?.beforeEach?.();
+                test.run(new this.testClassConstructor());
+                metaData?.afterEach?.();
+            }
+        }
+
+        this.runCompleted.resolve();
     }
     serialize()
     {
         return {
-            name: this.name,
+            name: this.className,
             tests: this.tests.map(test => test.serialize())
         };
     }
 
     printResults()
     {
-        console.group(``);
+        console.group(this.name);
         for (const test of this.tests)
         {
             test.printResults();
@@ -152,10 +197,11 @@ export class TestSuite extends SpecificationFragment
 
 }
 
-export class Test extends SpecificationFragment
+export class Test extends TestCommons
 {
     public error?: TestError;
     public description?: string;
+    public runStarted = new Awaitable();
 
     constructor(
         public testSuite: TestSuite,
@@ -172,6 +218,8 @@ export class Test extends SpecificationFragment
 
     async run(testFixture: any)
     {
+        this.runStarted.resolve();
+
         try
         {
             await testFixture[this.testFunctionName]();
@@ -180,6 +228,8 @@ export class Test extends SpecificationFragment
         {
             this.error = new TestError(e);
         }
+
+        this.runCompleted.resolve();
     }
 
     serialize()
@@ -197,14 +247,14 @@ export class Test extends SpecificationFragment
             console.log("✔️    " + this.name);
         else
         {
-            console.group("❌   " + this.name + " --> " + this.error.name);
+            console.group("❌   " + this.name);
             this.error.printResults();
             console.groupEnd();
         }
     }
 }
 
-export class TestError extends SpecificationFragment
+export class TestError extends TestCommons
 {
     public actual: any;
     public expected: any;
@@ -212,18 +262,22 @@ export class TestError extends SpecificationFragment
     public message!: string;
     public stack!: string;
     public sourceFile: string;
-    public cursorPosition: string;
+    public fileLocation: {
+        line: number,
+        column: number;
+    };
 
     constructor(private error: Error)
     {
         super();
         Object.assign(this, error);
+        this.name = error.name;
         const errorPosition = error.stack!.split("\n    at")[1].trim();
-        const filePosition = /\(((.*?)\:(\d+)\:(\d+))\)/.exec(errorPosition)!;
-        console.log(filePosition);
-        this.sourceFile = "";
-        this.cursorPosition = "";
+        const fileParseResults = /\((.*?)\:(\d+)\:(\d+)\)/.exec(errorPosition)!;
+        this.sourceFile = fileParseResults[1];
+        this.fileLocation = { line: Number(fileParseResults[2]), column: Number(fileParseResults[3]) };
     }
+
     serialize()
     {
         return Object.assign({}, this);
@@ -231,7 +285,7 @@ export class TestError extends SpecificationFragment
 
     printResults()
     {
-        console.log(this.error.name + ": " + (this.error.message || "unkown") + " --> \"" + this.sourceFile + ":" + this.cursorPosition + "\"");
+        console.log(`${this.error.name}: ${this.error.message || "unkown"} --> "${this.sourceFile}:${this.fileLocation.line}:${this.fileLocation.column}"`);
     }
 }
 

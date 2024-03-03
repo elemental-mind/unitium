@@ -17,7 +17,8 @@
       "types": "./distribution/index.d.ts",
       "import": "./distribution/index.js"
     },
-    "./browser/*": "./distribution/browser/*"
+    "./browser/*": "./distribution/browser/*",
+    "./api": "./distribution/api.js"
   },
   "author": "Magnus Meseck",
   "license": "MIT",
@@ -30,7 +31,8 @@
     "dry-update": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css",
     "patch": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version patch && git push && npm publish",
     "release": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version minor && git push && npm publish",
-    "test": "tsx ./source/node/index.ts ./examples/node"
+    "test": "tsx --inspect ./source/node/index.ts ./examples/node",
+    "serve": "vite"
   },
   "devDependencies": {
     "@types/node": "^17.0.6",
