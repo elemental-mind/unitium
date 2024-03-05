@@ -71,5 +71,5 @@
     }
   },
   "exclude": ["./example"],
-  "include": ["./source"]
+  "include": ["./source", "./meta-tests"]
 }
