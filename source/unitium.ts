@@ -175,16 +175,16 @@ export class TestSuite extends TestCommons
 
     async run()
     {
-        this.testClassConstructor.onSetup?.();
+        await this.testClassConstructor.onSetup?.();
 
         if (this.isSequential)
         {
             const testInstance = new this.testClassConstructor();
             for (const test of this.tests)
             {
-                testInstance.onBeforeEach?.(test);
+                await testInstance.onBeforeEach?.(test);
                 await test.run(testInstance);
-                testInstance.onAfterEach?.(test);
+                await testInstance.onAfterEach?.(test);
             }
         }
         else
@@ -192,16 +192,17 @@ export class TestSuite extends TestCommons
             for (const test of this.tests)
             {
                 const testInstance = new this.testClassConstructor();
-                testInstance.onBeforeEach?.(test);
+                await testInstance.onBeforeEach?.(test);
                 test.run(testInstance);
-                testInstance.onAfterEach?.(test);
+                await testInstance.onAfterEach?.(test);
             }
         }
 
-        this.testClassConstructor.onTeardown?.();
+        await this.testClassConstructor.onTeardown?.();
 
         this.runCompleted.resolve();
     }
+    
     serialize()
     {
         return {
