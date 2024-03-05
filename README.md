@@ -291,3 +291,65 @@ Multiple `test suites`, however, are run *asynchronously/in parallel*. That mean
 
 ## Running your tests
 Upon loading the page Unitium will run the tests and output its results to the output-HTML-element you provided - and upon finishing all tests - also on the console.
+
+# Programmatic Use
+
+If you would like to use Unitium programmatically, you can either use the CLI or the JS API to invoke the test runner.
+
+## CLI Runner Reference
+
+There are three executables distributed with unitium:
+- `unitium`: The standard JS-Runner that runs in node.
+- `unitium-tsx`: A TS-Runner that assumes `tsx` is installed globally.
+- `unitium-ts-node`: A TS-Runner that assumes `ts-node` is installed globally.
+
+By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. All executables foolow the same CLI schema:
+
+`unitium [flags] [files/folders]`
+
+### Available flags
+- `--json`: Instead of outputting human readable test results the output will be JSON summarizing the tests.
+- `--silent`: No output will be printed to stdout. Success or failure of tests can be determined by the process' exit code.
+
+### Specifying Files/Folders
+
+If you specify one or more space delimited files, only these files will be used for testing:
+
+`unitium-tsx --json ./path/to/onlyTestsInThisFileWillBeExecuted.ts`
+
+If you specify one or more space delimited folders, only test files in these folders and subfolders will be used for testing.
+
+`unitium-tsx --json ./path/to/onlyTestFilesInThisFolderWillBeUsed`
+
+## JS Runner API
+
+You can also invoke the runner programmatically through its JS API.
+
+```typescript
+import { NodeAppSpecification, NodeTestRunner } from "unitium/api";
+
+...
+    async runTests()
+    {
+        const spec = new NodeAppSpecification();
+        await spec.load();
+        const runner = new NodeTestRunner(spec);
+        await runner.runTests();
+
+        //after the tests are run you can inspect the results
+        if(spec.tests.includes(test => test.error !== undefined))
+            console.log("One or more tests failed");
+    }
+...
+```
+
+This behaves the same as invoking the CLI. If you would like to customize which files/URLs are loaded, a utility class `ULRSetSpecification` is provided:
+
+```typescript 
+    ...
+        const spec = new URLSetSpecification(["file://C:/path/to/file", "http://specCentral.org/tests.js"]);
+        await spec.load();
+```
+You can control `stdout` output by submitting an `options` object to the runner's constructor.
+
+If you have further requirements or need clarification, feel free to raise an issue.
