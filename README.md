@@ -112,6 +112,82 @@ It's important to note that tests within a `test suite` are run *sequentially* e
 
 Multiple `test suites`, however, are run *asynchronously/in parallel*. That means that if there are multiple `test suites` in a file with `async` tests, these tests may execute along each other, but still with only one test running per `test suite`.
 
+#### Decide between sequential or parallel testing
+
+As mentioned, by default test suite test are run in parallel by default. But by using the `@Sequential` decorator you can tell Unitium to treat your test suite as sequential tests.
+If a class is decorated with `@Sequential` only one single instance of a test suite will be created and passed through the test functions in order of appearance.
+
+```typescript
+@Sequential
+class SequentialTestSuite
+{
+    counter = 0;
+
+    incrementCounterAndTest()
+    {
+        this.counter++;
+        assert(this.counter === 1);
+    }
+
+    incerementAgainAndAssert()
+    {
+        this.counter++;
+        assert(this.counter === 2); //If this suite was not sequential, this would fail as "this" would be a fresh instance of "SequentialtestSuite" and hence this.counter would be 0.
+    }
+}
+```
+
+#### Implement Test Suite Lifecycle hooks
+
+A test suite goes through a certain lifecycle:
+
+x -> pending --> `static onSetup()` --> set up ==>> `onBeforeEach(test)` >> testing >> `onAfterEach(test)` ==>> testing finished --> `static onTeardown()` --> completed -> o
+
+Note that the `onSetup`and `onTeardown` hooks are static members of the class as opposed to the other hooks which are instance members.
+
+All hooks can be synchrounous or asynchronous.
+
+An example that might be a valid use case:
+
+```typescript
+@Sequential
+class DBTest
+{
+    static DBConnection;
+
+    static async onSetup()
+    {
+        this.DBConnection = await DB.connect(...)
+    }
+
+    static async onTeardown()
+    {
+        await this.DBConnection.dispose();
+    }
+
+    async onBeforeEach(test: Test)
+    {
+        console.log("throttling before " + test.name);
+        await throttleTestQueries();
+    }
+
+    async testQuery1()
+    {
+        const result = await DBTest.DBConnection.query(...)
+        ...
+    }
+
+    async testQuery2()
+    {
+        ...
+    }
+
+    ...
+}
+```
+
+> Note: If you implement any `onBeforeTest` or `onAfterTest` lifecycle hook make sure to decorate your class with `@Sequential` if your use case demands it. Remember that test are run in parallel by default and that your hooks may not be called in the order you expect them to be called.
+
 ## Run test runner
 
 Once you have installed Unitium and written your tests it's time to test:
@@ -257,6 +333,8 @@ Tests are organized in classes, which are referred to as `test suites`. Each pub
 A test file may have multiple `test suites`, but also other non-test-suite classes. Only classes marked with `export` will be interpreted as `test suites`.
 
 Private members (#-prepended) will not be interpreted as tests and can be used as utility functions or as data variables.
+
+
 
 ### Choosing an assertion library
 As browser environments do not include a native `assert` module you need to bring your own assert library. [uvu/assert](https://github.com/lukeed/uvu) is pretty lightweight and easy to use, but you can use any other assertion library like Chai etc. that throws upon false assertions.
