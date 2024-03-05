@@ -1,167 +1,291 @@
-// Copyright (c) 2022 Magnus Meseck
-// 
-// This software is released under the MIT License.
-// https://opensource.org/licenses/MIT
+import { Awaitable } from "deferium";
 
-export abstract class TestRunner<T extends TestSuite>
+export abstract class TestRunner extends Awaitable
 {
-    testModuleNames : string[] = [];
-    testSuites : T[] = [];
+    public specification: SoftwareSpecification;
 
-    async runTests()
+    testingCompleted = new Awaitable();
+    constructor(
+        loadedSpecification: SoftwareSpecification
+    )
     {
-        console.log("Running Tests...");
-
-        //We first gather all the filenames/urls of modules that contain tests.
-        this.testModuleNames = await this.getModuleNames();
-        //Every file/module may contain multiple Test suites. We load the module and start the tests immediately
-        const moduleLoadPromises = this.testModuleNames.map(
-            (moduleName) => 
-                this.loadModuleAndRunTestSuites(moduleName));
-        //We await the finished loading of all modules and the starting of all the TestSuites. 
-        const testSuitesGroupedByModule = await Promise.all(moduleLoadPromises);
-        //As loaded modules can contain multiple test suites we need to unwrap these and wait for them. We want to await finishing of all tests.
-        await Promise.all(testSuitesGroupedByModule.flat());
-
-        //All tests are finished and we can write the results to the console.
-        for (const testSuite of this.testSuites)
-            testSuite.printTestResults();
+        super();
+        this.specification = loadedSpecification;
     }
 
-    protected abstract getModuleNames() : Promise<string[]>;
+    abstract runTests(): void;
 
-    protected abstract loadModuleAndRunTestSuites(moduleName: string): Promise<Promise<T>[]>;
+    protected async runAllTests()
+    {
+        const moduleRuns = [];
+        for (const module of this.specification.testModules)
+            moduleRuns.push(module.run());
+        await Promise.all(moduleRuns);
+
+        this.specification.runCompleted.resolve();
+        this.testingCompleted.resolve();
+    }
 }
 
-export class TestSuite
+export abstract class TestCommons
 {
-    public name: string;
-    public testFunctions: string[];
-    public tests: Test[] = [];
-    public isRunning = false;
-    public isCompleted = false;
+    runCompleted = new Awaitable();
 
-    constructor(protected testClassConstructor: { new(): any })
-    {
-        this.name = testClassConstructor.name;
-        this.testFunctions = this.getTestFunctionNames();
-    };
+    abstract printResults(): void;
+    abstract serialize(): any;
+}
 
-    public get failedTests()
+export abstract class SoftwareSpecification extends TestCommons
+{
+    public testModules: TestModule[] = [];
+
+    get testSuites()
     {
-        return this.tests.filter(t => (t.isCompleted && t.error != undefined));
+        return this.testModules.flatMap(module => module.testSuites);
     }
 
-    public get passedTests()
+    get tests()
     {
-        return this.tests.filter(t => (t.isCompleted && t.error == undefined));
+        return this.testSuites.flatMap(suite => suite.tests);
     }
 
-    private getTestFunctionNames()
-    {
-        const testFunctions = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
-        const tests = [];
+    abstract load(): Promise<TestModule[]>;
 
-        for (const testFunction of testFunctions)
-        {
-            if (testFunction != "constructor" && typeof this.testClassConstructor.prototype[testFunction] === "function")
-            {
-                tests.push(testFunction);
-            }
+    protected async loadModule(path: string)
+    {
+        this.testModules.push(new TestModule(path, await import(/*@vite-ignore*/path)));
+    }
+
+    printResults()
+    {
+        console.log("Testing finished.");
+
+        const totalTestCount = this.tests.length;
+        const failedTestCount = this.tests.filter(test => test.error !== undefined).length;
+
+        if(failedTestCount === 0)
+            console.log("All tests passed.");
+        else
+            console.log(`${failedTestCount} of ${totalTestCount} tests failed.`)
+
+        for (const module of this.testModules) {
+            module.printResults();
         }
-
-        return tests;
     }
 
-    protected convertFunctionToTest(functionName: string)
+    serialize()
     {
-        return new Test(functionName);
+        return {
+            modules: this.testModules.map(module => module.serialize())
+        };
+    }
+}
+
+export class TestModule extends TestCommons
+{
+    testSuites: TestSuite[] = [];
+
+    get tests()
+    {
+        return this.testSuites.flatMap(suite => suite.tests);
+    }
+
+    constructor(
+        public path: string,
+        module: any
+    )
+    {
+        super();
+        for (const key in module)
+            if (TestSuite.isValid(module[key]))
+                this.testSuites.push(new TestSuite(this, module[key]));
+    }
+
+    async run()
+    {
+        const suiteRuns = [];
+        for (const suite of this.testSuites)
+            suiteRuns.push(suite.run());
+
+        await Promise.all(suiteRuns);
+
+        this.runCompleted.resolve();
+    }
+
+    printResults() { 
+        for (const suite of this.testSuites)
+            suite.printResults();
+    };
+    serialize()
+    {
+        return {
+            path: this.path,
+            suites: this.testSuites.map(suite => suite.serialize())
+        };
+    }
+}
+
+export class TestSuite extends TestCommons
+{
+    public className: string;
+    public name: string;
+    public tests: Test[] = [];
+
+    constructor(
+        public testModule: TestModule,
+        protected testClassConstructor: { new(): any; })
+    {
+        super();
+        this.className = testClassConstructor.name;
+        this.name = capitalCase(camelToNormal(this.className));
+
+        const testFunctionNames = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
+
+        for (const testFunctionName of testFunctionNames)
+            if (testFunctionName != "constructor" && typeof this.testClassConstructor.prototype[testFunctionName] === "function")
+                this.tests.push(new Test(this, testFunctionName));
+    }
+
+    static isValid(constructorFct: any)
+    {
+        return typeof constructorFct === "function" && constructorFct.prototype;
     }
 
     async run()
     {
         const metaData = this.testClassConstructor.prototype.__meta;
-        let sequentialInstance;
 
-        this.tests = this.testFunctions.map(functionName => this.convertFunctionToTest(functionName));
-        this.isRunning = true;
-
-        if(metaData?.isSequential)
-            sequentialInstance = new this.testClassConstructor();
-        
-        for (const test of this.tests)
+        if (metaData?.isSequential)
         {
-            metaData?.beforeEach?.();
-            await test.run(metaData?.isSequential?sequentialInstance:new this.testClassConstructor());
-            metaData?.afterEach?.();
-        }
-
-        this.isRunning = false;
-        this.isCompleted = true;
-
-        return this;
-    }
-
-    public printTestResults()
-    {
-        const passedTests = this.passedTests;
-        const failedTests = this.failedTests;
-        const totalTestCount = passedTests.length + failedTests.length;
-
-        console.log();
-        console.group(`${capitalCase(camelToNormal(this.name))}`);
-
-        console.group(`Passed: ${passedTests.length}/${totalTestCount}`);
-        passedTests.forEach(t => t.printTestResult());
-        console.groupEnd();
-
-        console.group(`Failed: ${failedTests.length}/${totalTestCount}`);
-        failedTests.forEach(t => t.printTestResult());
-        console.groupEnd();
-
-        console.groupEnd();
-    }
-}
-
-export class Test
-{
-    public error?: BaseError;
-    public isRunning = false;
-    public isCompleted = false;
-
-    constructor(
-        public testFunctionName: string
-    ) { }
-
-    async run(testSuiteObject: any)
-    {
-        this.isRunning = true;
-        try
-        {
-            await testSuiteObject[this.testFunctionName]();
-        }
-        catch (e: BaseError | any)
-        {
-            this.error = e;
-        }
-        this.isRunning = false;
-        this.isCompleted = true;
-    }
-
-    public printTestResult()
-    {
-        if (!this.error)
-        {
-            console.log("✔️    " + titleCase(camelToNormal(this.testFunctionName)));
+            const testInstance = new this.testClassConstructor();
+            for (const test of this.tests)
+            {
+                metaData?.beforeEach?.();
+                await test.run(testInstance);
+                metaData?.afterEach?.();
+            }
         }
         else
         {
-            const errorPosition = this.error.stack.split("\n    at")[1].trim();
-            const filePosition = /\(((.*?)\:(\d+)\:(\d+))\)/.exec(errorPosition)!;
-            console.group("❌   " + titleCase(camelToNormal(this.testFunctionName)) + " --> " + this.error.name + ": " + (this.error.message || "unkown") + " --> \"" + filePosition[1] + "\"");
-            // console.log(this.error);
+            for (const test of this.tests)
+            {
+                metaData?.beforeEach?.();
+                test.run(new this.testClassConstructor());
+                metaData?.afterEach?.();
+            }
+        }
+
+        this.runCompleted.resolve();
+    }
+    serialize()
+    {
+        return {
+            name: this.className,
+            tests: this.tests.map(test => test.serialize())
+        };
+    }
+
+    printResults()
+    {
+        console.group(this.name);
+        for (const test of this.tests)
+        {
+            test.printResults();
+        }
+        console.groupEnd();
+    };
+
+}
+
+export class Test extends TestCommons
+{
+    public error?: TestError;
+    public description?: string;
+    public runStarted = new Awaitable();
+
+    constructor(
+        public testSuite: TestSuite,
+        public testFunctionName: string
+    )
+    {
+        super();
+    }
+
+    get name()
+    {
+        return titleCase(camelToNormal(this.testFunctionName));
+    }
+
+    async run(testFixture: any)
+    {
+        this.runStarted.resolve();
+
+        try
+        {
+            await testFixture[this.testFunctionName]();
+        }
+        catch (e: Error | any)
+        {
+            this.error = new TestError(e);
+        }
+
+        this.runCompleted.resolve();
+    }
+
+    serialize()
+    {
+        return {
+            name: this.name,
+            description: this.description,
+            error: this.error
+        };
+    }
+
+    public printResults()
+    {
+        if (!this.error)
+            console.log("✔️    " + this.name);
+        else
+        {
+            console.group("❌   " + this.name);
+            this.error.printResults();
             console.groupEnd();
         }
+    }
+}
+
+export class TestError extends TestCommons
+{
+    public actual: any;
+    public expected: any;
+    public name!: string;
+    public message!: string;
+    public stack!: string;
+    public sourceFile: string;
+    public fileLocation: {
+        line: number,
+        column: number;
+    };
+
+    constructor(private error: Error)
+    {
+        super();
+        Object.assign(this, error);
+        this.name = error.name;
+        const errorPosition = error.stack!.split("\n    at")[1].trim();
+        const fileParseResults = /\((.*?)\:(\d+)\:(\d+)\)/.exec(errorPosition)!;
+        this.sourceFile = fileParseResults[1];
+        this.fileLocation = { line: Number(fileParseResults[2]), column: Number(fileParseResults[3]) };
+    }
+
+    serialize()
+    {
+        return Object.assign({}, this);
+    }
+
+    printResults()
+    {
+        console.log(`${this.error.name}: ${this.error.message || "unkown"} --> "${this.sourceFile}:${this.fileLocation.line}:${this.fileLocation.column}"`);
     }
 }
 
@@ -170,19 +294,12 @@ export function camelToNormal(camelCaseString: string)
     return camelCaseString.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
-export function titleCase(text: string){
+export function titleCase(text: string)
+{
     return text[0].toUpperCase() + text.slice(1).toLowerCase();
 }
 
-export function capitalCase(text: string){
-    return text.split(" ").map(s => titleCase(s)).join(" ");
-}
-
-interface BaseError
+export function capitalCase(text: string)
 {
-    name: string,
-    message: string,
-    stack: string,
-    actual?: any,
-    expects?: any
+    return text.split(" ").map(s => titleCase(s)).join(" ");
 }
