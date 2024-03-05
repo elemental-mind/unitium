@@ -1,3 +1,5 @@
+import { debugTests } from "./unitium.js"
+
 export function Sequential<T extends { new(...args: any[]): {} }>(cls: T, _context: any)
 {
     cls.prototype.__meta = cls.prototype.__meta ?? {};
@@ -5,22 +7,7 @@ export function Sequential<T extends { new(...args: any[]): {} }>(cls: T, _conte
     return cls;
 }
 
-export function BeforeEach(beforeFunction: () => void)
+export function Debug(containingClass: any, propertyKey: string, descriptor: PropertyDescriptor)
 {
-    return function (cls: any, _context: any)
-    {
-        cls.prototype.__meta = cls.prototype.__meta ?? {};
-        cls.prototype.__meta.beforeEach = beforeFunction;
-        return cls;
-    }
-}
-
-export function AfterEach(afterFunction: () => void)
-{
-    return function (cls: any, _context: any)
-    {
-        cls.prototype.__meta = cls.prototype.__meta ?? {};
-        cls.prototype.__meta.afterEach = afterFunction;
-        return cls;
-    }
+    debugTests.set(containingClass, descriptor); 
 }

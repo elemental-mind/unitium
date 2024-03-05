@@ -1,4 +1,7 @@
 import { Awaitable } from "deferium";
+import { ITestSuiteMemberHooks, ITestSuiteStaticHooks } from "./hooks.js";
+
+export const debugTests = new Map<object, PropertyDescriptor>();
 
 export abstract class TestRunner extends Awaitable
 {
@@ -27,7 +30,7 @@ export abstract class TestRunner extends Awaitable
     }
 }
 
-export abstract class TestCommons
+abstract class TestCommons
 {
     runCompleted = new Awaitable();
 
@@ -63,12 +66,13 @@ export abstract class SoftwareSpecification extends TestCommons
         const totalTestCount = this.tests.length;
         const failedTestCount = this.tests.filter(test => test.error !== undefined).length;
 
-        if(failedTestCount === 0)
+        if (failedTestCount === 0)
             console.log("All tests passed.");
         else
-            console.log(`${failedTestCount} of ${totalTestCount} tests failed.`)
+            console.log(`${failedTestCount} of ${totalTestCount} tests failed.`);
 
-        for (const module of this.testModules) {
+        for (const module of this.testModules)
+        {
             module.printResults();
         }
     }
@@ -112,7 +116,8 @@ export class TestModule extends TestCommons
         this.runCompleted.resolve();
     }
 
-    printResults() { 
+    printResults()
+    {
         for (const suite of this.testSuites)
             suite.printResults();
     };
@@ -125,15 +130,24 @@ export class TestModule extends TestCommons
     }
 }
 
+type ITestSuiteMetadata = {
+    __meta?: {
+        isSequential?: boolean;
+    };
+};
+
 export class TestSuite extends TestCommons
 {
     public className: string;
     public name: string;
     public tests: Test[] = [];
 
+    public isSequential = false;
+    public containsTestHooks = false;
+
     constructor(
         public testModule: TestModule,
-        protected testClassConstructor: { new(): any; })
+        protected testClassConstructor: { new(): ITestSuiteMemberHooks; prototype: ITestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>; } & ITestSuiteStaticHooks)
     {
         super();
         this.className = testClassConstructor.name;
@@ -141,8 +155,16 @@ export class TestSuite extends TestCommons
 
         const testFunctionNames = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
 
+        const noTestNames = ["constructor", "onSetup", "onBeforeEach", "onAfterEach", "onTeardown"];
+
+        if (this.testClassConstructor.prototype.onBeforeEach || this.testClassConstructor.prototype.onAfterEach)
+            this.containsTestHooks = true;
+
+        if (this.testClassConstructor.prototype.__meta?.isSequential || this.containsTestHooks)
+            this.isSequential = true;
+
         for (const testFunctionName of testFunctionNames)
-            if (testFunctionName != "constructor" && typeof this.testClassConstructor.prototype[testFunctionName] === "function")
+            if (!noTestNames.includes(testFunctionName) && typeof this.testClassConstructor.prototype[testFunctionName] === "function")
                 this.tests.push(new Test(this, testFunctionName));
     }
 
@@ -153,27 +175,30 @@ export class TestSuite extends TestCommons
 
     async run()
     {
-        const metaData = this.testClassConstructor.prototype.__meta;
+        this.testClassConstructor.onSetup?.();
 
-        if (metaData?.isSequential)
+        if (this.isSequential)
         {
             const testInstance = new this.testClassConstructor();
             for (const test of this.tests)
             {
-                metaData?.beforeEach?.();
+                testInstance.onBeforeEach?.(test);
                 await test.run(testInstance);
-                metaData?.afterEach?.();
+                testInstance.onAfterEach?.(test);
             }
         }
         else
         {
             for (const test of this.tests)
             {
-                metaData?.beforeEach?.();
-                test.run(new this.testClassConstructor());
-                metaData?.afterEach?.();
+                const testInstance = new this.testClassConstructor();
+                testInstance.onBeforeEach?.(test);
+                test.run(testInstance);
+                testInstance.onAfterEach?.(test);
             }
         }
+
+        this.testClassConstructor.onTeardown?.();
 
         this.runCompleted.resolve();
     }
@@ -254,7 +279,7 @@ export class Test extends TestCommons
     }
 }
 
-export class TestError extends TestCommons
+class TestError extends TestCommons
 {
     public actual: any;
     public expected: any;
@@ -289,17 +314,17 @@ export class TestError extends TestCommons
     }
 }
 
-export function camelToNormal(camelCaseString: string)
+function camelToNormal(camelCaseString: string)
 {
     return camelCaseString.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
-export function titleCase(text: string)
+function titleCase(text: string)
 {
     return text[0].toUpperCase() + text.slice(1).toLowerCase();
 }
 
-export function capitalCase(text: string)
+function capitalCase(text: string)
 {
     return text.split(" ").map(s => titleCase(s)).join(" ");
 }

@@ -1,5 +1,6 @@
 import assert from "assert";
-import { Sequential, BeforeEach, AfterEach } from "unitium"
+import { Sequential, ITestSuiteMemberHooks, Debug } from "./../../source/index.ts";
+import { Test } from "../../source/unitium.ts";
 
 export class BasicExampleTests
 {
@@ -15,7 +16,7 @@ export class BasicExampleTests
 
     async longRunningTest()
     {
-        await new Promise(resolve => setTimeout(() => resolve(null), 1000))
+        await new Promise(resolve => setTimeout(() => resolve(null), 1000));
         assert.equal(true, true);
     }
 
@@ -72,10 +73,29 @@ export class SequentialTestSuite
 //If you have global state and need to reset it before running each test, use the @BeforeEach and @AfterEach decorators.
 let moduleVariable = 0;
 
-@BeforeEach(() => moduleVariable = 0)
-@AfterEach(() => console.log("tested"))
-export class TestSuiteWithGlobalState
+export class TestSuiteWithGlobalState implements ITestSuiteMemberHooks
 {
+    static onSetup()
+    {
+        moduleVariable = 2000;
+    }
+
+    static onTearDown()
+    {
+        moduleVariable = 2000;
+    }
+
+    onBeforeEach(test: Test)
+    {
+        moduleVariable = 0;
+    }
+
+    onAfterEach(test: Test)
+    {
+        console.log("tested");
+    }
+
+    // @Debug
     setModuleVariable()
     {
         moduleVariable = 100;
