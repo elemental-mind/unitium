@@ -18,7 +18,8 @@
       "import": "./distribution/index.js"
     },
     "./browser/*": "./distribution/browser/*",
-    "./api": "./distribution/api.js"
+    "./node-api": "./distribution/node/api.js",
+    "./browser-api": "./distribution/browser/api.js"
   },
   "author": "Magnus Meseck",
   "license": "MIT",

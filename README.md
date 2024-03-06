@@ -403,7 +403,7 @@ If you specify one or more space delimited folders, only test files in these fol
 You can also invoke the runner programmatically through its JS API.
 
 ```typescript
-import { NodeAppSpecification, NodeTestRunner } from "unitium/api";
+import { NodeAppSpecification, NodeTestRunner } from "unitium/node-api";
 
 ...
     async runTests()

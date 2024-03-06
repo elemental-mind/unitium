@@ -85,6 +85,18 @@ export abstract class SoftwareSpecification extends TestCommons
     }
 }
 
+export class URLSetSpecification extends SoftwareSpecification
+{
+    constructor(public URLs: string[]){ super(); }
+    async load(): Promise<TestModule[]>
+    {
+        for (const testResource of this.URLs) 
+            this.testModules.push(new TestModule(testResource, await import(testResource)))
+
+        return this.testModules;
+    }
+}
+
 export class TestModule extends TestCommons
 {
     testSuites: TestSuite[] = [];
