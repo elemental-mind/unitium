@@ -31,7 +31,7 @@
     "dry-update": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css",
     "patch": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version patch && git push && npm publish",
     "release": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version minor && git push && npm publish",
-    "test": "tsx --inspect ./source/node/index.ts ./examples/node",
+    "test": "tsx --inspect ./source/node/index.ts ./source",
     "serve": "vite"
   },
   "devDependencies": {
