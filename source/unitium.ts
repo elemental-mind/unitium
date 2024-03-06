@@ -159,7 +159,7 @@ export class TestSuite extends TestCommons
 
     constructor(
         public testModule: TestModule,
-        protected testClassConstructor: { new(): ISequentialTestSuiteMemberHooks; prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>; } & IParallelTestSuiteStaticHooks)
+        public testClassConstructor: { new(): ISequentialTestSuiteMemberHooks; prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>; } & IParallelTestSuiteStaticHooks)
     {
         super();
         this.className = testClassConstructor.name;
@@ -202,20 +202,26 @@ export class TestSuite extends TestCommons
         }
         else
         {
+            const testRunPromises = [];
             await this.testClassConstructor.onSetup?.();
 
             for (const test of this.tests)
-            {
-                const testInstance = new this.testClassConstructor();
-                await testInstance.onBeforeEach?.(test);
-                test.run(testInstance);
-                await testInstance.onAfterEach?.(test);
-            }
+                testRunPromises.push(this.runTestParallel(test));
 
+            await Promise.all(testRunPromises);
+            
             await this.testClassConstructor.onTeardown?.();
         }
 
         this.runCompleted.resolve();
+    }
+
+    async runTestParallel(test: Test)
+    {
+        const testInstance = new this.testClassConstructor();
+        await testInstance.onBeforeEach?.(test);
+        await test.run(testInstance);
+        await testInstance.onAfterEach?.(test);
     }
     
     serialize()
