@@ -1,23 +1,22 @@
 export class ParallelTestSuite
 {
+    static executionOrder: number[] = [];
+    
     async first()
     {
-        console.log("Started first")
         await new Promise(resolve => setTimeout(resolve, 300));
-        console.log("Finished last");
+        ParallelTestSuite.executionOrder.push(1);
     }
 
     async second()
     {
-        console.log("Started second");
         await new Promise(resolve => setTimeout(resolve, 200));
-        console.log("Finished second");
+        ParallelTestSuite.executionOrder.push(2);
     }
 
     async third()
     {
-        console.log("Started last")
         await new Promise(resolve => setTimeout(resolve, 100));
-        console.log("Finished first");
+        ParallelTestSuite.executionOrder.push(3);
     }
 }

@@ -1,4 +1,4 @@
-class UtilityClassThatIsNotATest
+class NoTest
 {
     iShouldNotBeRun()
     {

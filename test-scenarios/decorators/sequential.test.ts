@@ -1,23 +1,25 @@
-import { Sequential } from "../../../source/decorators.ts";
+import { Sequential } from "./../../../source/decorators.ts";
 
 @Sequential
 export class SequentialTestSuite
 {
+    static executionOrder: number[] = [];
+    
     async first()
     {
         await new Promise(resolve => setTimeout(resolve, 300));
-        console.log("First");
+        SequentialTestSuite.executionOrder.push(1);
     }
 
     async second()
     {
         await new Promise(resolve => setTimeout(resolve, 200));
-        console.log("Second");
+        SequentialTestSuite.executionOrder.push(2);
     }
 
     async third()
     {
         await new Promise(resolve => setTimeout(resolve, 100));
-        console.log("Third");
+        SequentialTestSuite.executionOrder.push(3);
     }
 }
