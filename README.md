@@ -141,9 +141,10 @@ class SequentialTestSuite
 
 A test suite goes through a certain lifecycle:
 
-x -> pending --> `static onSetup()` --> set up ==>> `onBeforeEach(test)` >> testing >> `onAfterEach(test)` ==>> testing finished --> `static onTeardown()` --> completed -> o
+x -> pending --> `<static> onSetup()` --> set up ==>> `onBeforeEach(test)` >> testing >> `onAfterEach(test)` ==>> testing finished --> `<static> onTeardown()` --> completed -> o
 
-Note that the `onSetup`and `onTeardown` hooks are static members of the class as opposed to the other hooks which are instance members.
+Note that the `onSetup`and `onTeardown` hooks should be static members of the class if the test suite is non-sequential. All other hooks are member functions by default.
+If any member function hooks are detected, the test suite is automatically treated as a sequential test suite.
 
 All hooks can be synchrounous or asynchronous.
 
@@ -185,8 +186,6 @@ class DBTest
     ...
 }
 ```
-
-> Note: If you implement any `onBeforeTest` or `onAfterTest` lifecycle hook make sure to decorate your class with `@Sequential` if your use case demands it. Remember that test are run in parallel by default and that your hooks may not be called in the order you expect them to be called.
 
 ## Run test runner
 

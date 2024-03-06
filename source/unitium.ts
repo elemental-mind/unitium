@@ -1,5 +1,5 @@
 import { Awaitable } from "deferium";
-import { ITestSuiteMemberHooks, ITestSuiteStaticHooks } from "./hooks.js";
+import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
 
 export const debugTests = new Map<object, PropertyDescriptor>();
 
@@ -147,7 +147,7 @@ export class TestSuite extends TestCommons
 
     constructor(
         public testModule: TestModule,
-        protected testClassConstructor: { new(): ITestSuiteMemberHooks; prototype: ITestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>; } & ITestSuiteStaticHooks)
+        protected testClassConstructor: { new(): ISequentialTestSuiteMemberHooks; prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>; } & IParallelTestSuiteStaticHooks)
     {
         super();
         this.className = testClassConstructor.name;
@@ -157,7 +157,7 @@ export class TestSuite extends TestCommons
 
         const noTestNames = ["constructor", "onSetup", "onBeforeEach", "onAfterEach", "onTeardown"];
 
-        if (this.testClassConstructor.prototype.onBeforeEach || this.testClassConstructor.prototype.onAfterEach)
+        if (this.testClassConstructor.prototype.onBeforeEach || this.testClassConstructor.prototype.onAfterEach || this.testClassConstructor.prototype.onSetup || this.testClassConstructor.prototype.onTeardown)
             this.containsTestHooks = true;
 
         if (this.testClassConstructor.prototype.__meta?.isSequential || this.containsTestHooks)
@@ -175,20 +175,23 @@ export class TestSuite extends TestCommons
 
     async run()
     {
-        await this.testClassConstructor.onSetup?.();
-
         if (this.isSequential)
         {
             const testInstance = new this.testClassConstructor();
+
+            testInstance.onSetup?.();
             for (const test of this.tests)
             {
                 await testInstance.onBeforeEach?.(test);
                 await test.run(testInstance);
                 await testInstance.onAfterEach?.(test);
             }
+            testInstance.onTeardown?.();
         }
         else
         {
+            await this.testClassConstructor.onSetup?.();
+
             for (const test of this.tests)
             {
                 const testInstance = new this.testClassConstructor();
@@ -196,9 +199,9 @@ export class TestSuite extends TestCommons
                 test.run(testInstance);
                 await testInstance.onAfterEach?.(test);
             }
-        }
 
-        await this.testClassConstructor.onTeardown?.();
+            await this.testClassConstructor.onTeardown?.();
+        }
 
         this.runCompleted.resolve();
     }
