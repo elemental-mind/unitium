@@ -13,22 +13,22 @@ type NodeRunnerOptions = typeof defaultNodeOptions;
 export class NodeTestRunner extends TestRunner
 {
     constructor(
-        specification: SoftwareSpecification, 
+        specification: SoftwareSpecification,
         public options?: typeof defaultNodeOptions)
     {
         super(specification);
         this.options = defaultNodeOptions;
-        if(options) Object.assign(this.options, options);
+        if (options) Object.assign(this.options, options);
     }
 
     async runTests()
     {
         await super.runAllTests();
 
-        if(!this.options?.silent)
+        if (!this.options?.silent)
         {
-            if(this.options?.outputJSON)
-                console.log(this.specification.serialize)
+            if (this.options?.outputJSON)
+                console.log(this.specification.serialize);
             else
                 this.specification.printResults();
         }
@@ -37,12 +37,20 @@ export class NodeTestRunner extends TestRunner
 
 export class NodeAppSpecification extends SoftwareSpecification
 {
-    async load(): Promise<TestModule[]> {
+    constructor(
+        public fileSystemReferences: string[] = []
+    )
+    {
+        super();
+    }
+
+    async load(): Promise<TestModule[]>
+    {
         const moduleURLs = await this.getModuleURLs();
         const moduleLoadPromises = [];
 
-        for (const modulePath of moduleURLs) 
-            moduleLoadPromises.push(this.loadModule(modulePath))
+        for (const modulePath of moduleURLs)
+            moduleLoadPromises.push(this.loadModule(modulePath));
 
         await Promise.all(moduleLoadPromises);
 
@@ -51,20 +59,18 @@ export class NodeAppSpecification extends SoftwareSpecification
 
     protected async getModuleURLs()
     {
-        const [executable, script, ...fileSystemReferences] = process.argv;
-
         var globs;
 
-        if (fileSystemReferences.length)
+        if (this.fileSystemReferences.length)
         {
-            globs = fileSystemReferences.map(fileSystemReference => this.transformAndAddGlobPatternIfFolder(fileSystemReference));
+            globs = this.fileSystemReferences.map(fileSystemReference => this.transformAndAddGlobPatternIfFolder(fileSystemReference));
         }
         else
         {
             globs = ["./**/*.{test,spec}.{js,ts}"];
         }
 
-        const modules =  await FastGlob(globs,
+        const modules = await FastGlob(globs,
             {
                 onlyFiles: true,
                 absolute: true,
@@ -72,8 +78,8 @@ export class NodeAppSpecification extends SoftwareSpecification
             });
 
         const uniqueModules = [...new Set(modules)];
-        const moduleFileURLs = uniqueModules.map(module => `file://${module}`)
-        
+        const moduleFileURLs = uniqueModules.map(module => `file://${module}`);
+
         return moduleFileURLs;
     }
 
@@ -99,12 +105,20 @@ async function runTests()
         outputJSON: process.argv.includes("--json") || undefined,
     } as NodeRunnerOptions;
 
-    const spec = new NodeAppSpecification();
+    const [executable, script, ...options] = process.argv;
+
+    //We remove all the flags from the options and should be left with files/folder only.
+    while (options[0] && options[0].startsWith("--"))
+        options.pop();
+
+    const fileSystemReferences = options;
+
+    const spec = new NodeAppSpecification(fileSystemReferences);
     await spec.load();
     const runner = new NodeTestRunner(spec, cliOptions);
     await runner.runTests();
-  
-    if(spec.tests.some(test => test.error != undefined))
+
+    if (spec.tests.some(test => test.error != undefined))
         process.exitCode = 1;
 }
 
