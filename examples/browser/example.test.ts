@@ -1,6 +1,7 @@
 import * as assert from "uvu/assert";
 // normally you just include `import { xxx } from "unitium"`
-import { Sequential, BeforeEach, AfterEach } from "../../source/index.js"
+import { ISequentialTestSuiteMemberHooks, Sequential } from "../../source/index.js"
+import { Test } from "../../source/unitium.js";
 
 export class BasicExampleTests
 {
@@ -73,14 +74,29 @@ export class SequentialTest
 //If you have global state and need to reset it before running each test, use the @BeforeEach and @AfterEach decorators.
 let moduleVariable = 0;
 
-@BeforeEach(() => moduleVariable = 0)
-@AfterEach(() => console.log("tested"))
-export class BeforeEachTest
+export class TestSuiteWithGlobalState implements ISequentialTestSuiteMemberHooks
 {
-    constructor()
+    onSetup()
     {
+        moduleVariable = 2000;
     }
 
+    onTearDown()
+    {
+        moduleVariable = 2000;
+    }
+
+    onBeforeEach(test: Test)
+    {
+        moduleVariable = 0;
+    }
+
+    onAfterEach(test: Test)
+    {
+        console.log("tested");
+    }
+
+    // @Debug
     setModuleVariable()
     {
         moduleVariable = 100;
