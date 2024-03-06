@@ -2,6 +2,7 @@
 
 import FastGlob from 'fast-glob';
 import { SoftwareSpecification, TestModule, TestRunner, TestSuite } from '../unitium.js';
+import path from "path";
 
 const defaultNodeOptions = {
     silent: true,
@@ -12,13 +13,17 @@ type NodeRunnerOptions = typeof defaultNodeOptions;
 
 export class NodeTestRunner extends TestRunner
 {
+    public options = Object.assign({}, defaultNodeOptions);
     constructor(
         specification: SoftwareSpecification,
-        public options?: typeof defaultNodeOptions)
+        options?: typeof defaultNodeOptions)
     {
         super(specification);
-        this.options = defaultNodeOptions;
-        if (options) Object.assign(this.options, options);
+
+        if (options?.silent !== undefined)
+            this.options.silent = options.silent;
+        if (options?.outputJSON !== undefined)
+            this.options.outputJSON = options.outputJSON;
     }
 
     async runTests()
@@ -59,50 +64,44 @@ export class NodeAppSpecification extends SoftwareSpecification
 
     protected async getModuleURLs()
     {
-        var globs;
+        let folderGlobs: string[] = ["./**/*.{test,spec}.{js,ts}"];
+        let fileReferences: string[] = [];
 
         if (this.fileSystemReferences.length)
         {
-            globs = this.fileSystemReferences.map(fileSystemReference => this.transformAndAddGlobPatternIfFolder(fileSystemReference));
-        }
-        else
-        {
-            globs = ["./**/*.{test,spec}.{js,ts}"];
+            fileReferences = this.fileSystemReferences.filter(ref => ref.endsWith(".js") || ref.endsWith(".ts")).map(file => this.normalizeFilePath(file));
+            folderGlobs = this.fileSystemReferences.filter(ref => !(ref.endsWith(".js") || ref.endsWith(".ts"))).map(folder => this.globifyFilePath(folder));
         }
 
-        const modules = await FastGlob(globs,
+        const folderModules = await FastGlob(folderGlobs,
             {
                 onlyFiles: true,
                 absolute: true,
                 ignore: ['**/node_modules/**']
             });
 
-        const uniqueModules = [...new Set(modules)];
+        const uniqueModules = [...new Set([...folderModules, ...fileReferences])];
         const moduleFileURLs = uniqueModules.map(module => `file://${module}`);
 
         return moduleFileURLs;
     }
 
-    private transformAndAddGlobPatternIfFolder(reference: string)
+    private normalizeFilePath(reference: string)
     {
-        if (reference.endsWith(".js") || reference.endsWith(".ts"))
-        {
-            // We are dealing with a file and leave it untouched, only replacing windows slashes with unix slashes for fast-glob
-            return reference.replace("\\", "/");
-        }
-        else
-        {
-            //We assume we are dealing with a directory and need to add a glob pattern to it
-            return reference.replace("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
-        }
+        return path.resolve(reference).replaceAll("\\", "/");
+    }
+
+    private globifyFilePath(reference: string)
+    {
+        return reference.replaceAll("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
     }
 }
 
 async function runTests()
 {
-    const cliOptions = {
-        silent: process.argv.includes("--silent") || undefined,
-        outputJSON: process.argv.includes("--json") || undefined,
+    const outputOptions = {
+        silent: process.argv.includes("--silent") || false,
+        outputJSON: process.argv.includes("--json") || false,
     } as NodeRunnerOptions;
 
     const [executable, script, ...options] = process.argv;
@@ -115,7 +114,7 @@ async function runTests()
 
     const spec = new NodeAppSpecification(fileSystemReferences);
     await spec.load();
-    const runner = new NodeTestRunner(spec, cliOptions);
+    const runner = new NodeTestRunner(spec, outputOptions);
     await runner.runTests();
 
     if (spec.tests.some(test => test.error != undefined))
