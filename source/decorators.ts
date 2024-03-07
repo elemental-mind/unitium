@@ -1,4 +1,4 @@
-import { debugTests } from "./unitium.js"
+import { TestSuiteConstructor } from "./unitium.js";
 
 export function Sequential<T extends { new(...args: any[]): {} }>(cls: T, _context: any)
 {
@@ -7,7 +7,8 @@ export function Sequential<T extends { new(...args: any[]): {} }>(cls: T, _conte
     return cls;
 }
 
-export function Debug(containingClass: any, propertyKey: string, descriptor: PropertyDescriptor)
+export function Debug(containingClass: TestSuiteConstructor, propertyKey: string)
 {
-    debugTests.set(containingClass, descriptor); 
+    containingClass.constructor.prototype.__meta = containingClass.constructor.prototype.__meta ?? {};
+    containingClass.constructor.prototype.__meta.debugTestName = propertyKey;
 }

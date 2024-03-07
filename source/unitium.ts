@@ -1,8 +1,6 @@
 import { Awaitable } from "deferium";
 import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
 
-export const debugTests = new Map<object, PropertyDescriptor>();
-
 export abstract class TestRunner extends Awaitable
 {
     public specification: SoftwareSpecification;
@@ -20,6 +18,29 @@ export abstract class TestRunner extends Awaitable
 
     protected async runAllTests()
     {
+        const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined);
+
+        if (debugSuite)
+        {
+            //If we have a debug test, we filter the spec to only the test to debug
+            const debugModule = this.specification.testModules.find(module => module.testSuites.includes(debugSuite))!;
+            this.specification.testModules = this.specification.testModules.filter(module => module === debugModule);
+            debugModule.testSuites = debugModule.testSuites.filter(suite => suite === debugSuite);
+            const debugTest = debugSuite.tests.find(test => test.testFunctionName === debugSuite.testClassConstructor.prototype.__meta?.debugTestName)!;
+
+            if (debugSuite.isSequential)
+            {
+                //If the suite is sequential, we only execute the test and all tests before it
+                const testIndex = debugSuite.tests.indexOf(debugTest);
+                debugSuite.tests = debugSuite.tests.slice(0, testIndex + 1);
+            }
+            else
+                //If the suite is parallel, we only execute the test
+                debugSuite.tests = debugSuite.tests.filter(test => test === debugTest);
+
+            console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`);
+        }
+
         const moduleRuns = [];
         for (const module of this.specification.testModules)
             moduleRuns.push(module.run());
@@ -87,11 +108,11 @@ export abstract class SoftwareSpecification extends TestCommons
 
 export class URLSetSpecification extends SoftwareSpecification
 {
-    constructor(public URLs: string[]){ super(); }
+    constructor(public URLs: string[]) { super(); }
     async load(): Promise<TestModule[]>
     {
-        for (const testResource of this.URLs) 
-            this.testModules.push(new TestModule(testResource, await import(testResource)))
+        for (const testResource of this.URLs)
+            this.testModules.push(new TestModule(testResource, await import(testResource)));
 
         return this.testModules;
     }
@@ -142,9 +163,17 @@ export class TestModule extends TestCommons
     }
 }
 
+export type TestSuiteConstructor =
+    IParallelTestSuiteStaticHooks &
+    {
+        new(): ISequentialTestSuiteMemberHooks;
+        prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>;
+    };
+
 type ITestSuiteMetadata = {
     __meta?: {
         isSequential?: boolean;
+        debugTestName?: string;
     };
 };
 
@@ -159,7 +188,8 @@ export class TestSuite extends TestCommons
 
     constructor(
         public testModule: TestModule,
-        public testClassConstructor: { new(): ISequentialTestSuiteMemberHooks; prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>; } & IParallelTestSuiteStaticHooks)
+        public testClassConstructor: TestSuiteConstructor
+    )
     {
         super();
         this.className = testClassConstructor.name;
@@ -185,7 +215,7 @@ export class TestSuite extends TestCommons
         return typeof constructorFct === "function" && constructorFct.prototype;
     }
 
-    async run()
+    async run(debugTest?: Test)
     {
         if (this.isSequential)
         {
@@ -209,7 +239,7 @@ export class TestSuite extends TestCommons
                 testRunPromises.push(this.runTestParallel(test));
 
             await Promise.all(testRunPromises);
-            
+
             await this.testClassConstructor.onTeardown?.();
         }
 
@@ -223,7 +253,7 @@ export class TestSuite extends TestCommons
         await test.run(testInstance);
         await testInstance.onAfterEach?.(test);
     }
-    
+
     serialize()
     {
         return {
