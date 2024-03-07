@@ -369,6 +369,42 @@ Multiple `test suites`, however, are run *asynchronously/in parallel*. That mean
 ## Running your tests
 Upon loading the page Unitium will run the tests and output its results to the output-HTML-element you provided - and upon finishing all tests - also on the console.
 
+# Debugging Tests
+
+In order to debug tests or underlying programs during development Unitium checks whether there is any test decorated with the `@Debug` decorator on a test suite's member method. If this is the case all other test will be discarded for this test runner run and only this test will be executed.
+
+```typescript
+class TestSuite
+{
+    testThatWillNotBeRun()
+    {
+        //this test will not be run as it is not decorated with @Debug
+    }
+
+    @Debug
+    testThatWillBeDebugged()
+    {
+        //this test will be run
+    }
+}
+```
+
+If the test is in a sequential test suite, though, all tests leading up to the debugged test will be executed as they are assumed to alter the state of the test suite:
+
+```typescript
+@Sequential
+class TestSuite
+{
+    testThatWillBeRun() {}
+    testThatWillBeRunAsWell() {}
+
+    @Debug
+    testThatWillBeDebugged() {}
+
+    testThatWillNotBeRun(){}
+}
+```
+
 # Programmatic Use
 
 If you would like to use Unitium programmatically, you can either use the CLI or the JS API to invoke the test runner.
