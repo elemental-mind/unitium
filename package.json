@@ -29,10 +29,10 @@
     "unitium-ts-node": "/distribution/node/exec-ts-node.js"
   },
   "scripts": {
-    "dry-update": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css",
-    "patch": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version patch && git push && npm publish",
-    "release": "tsc && copy /y source\\browser\\style.css distribution\\browser\\style.css && npm version minor && git push && npm publish",
-    "test": "tsx --inspect ./source/node/index.ts ./source",
+    "dry-update": "tsx npm-release.ts",
+    "patch": "tsx npm-release.ts && npm version patch && git push && npm publish",
+    "release": "tsx npm-release.ts && npm version minor && git push && npm publish",
+    "test": "tsx ./source/node/index.ts ./source",
     "serve": "vite"
   },
   "devDependencies": {
