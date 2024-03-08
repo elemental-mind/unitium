@@ -5,19 +5,30 @@ import * as path from 'path';
 async function prepareRelease()
 {
     await deleteOldDistFolder();
-    compileProject();
+    await compileProject();
     await cleanupDistributionFolder();
     await copyCSSFiles();
 }
 
 async function deleteOldDistFolder()
 {
-    await fs.rm("distribution", { recursive: true });
+    try
+    {   
+        await fs.rm("distribution", { recursive: true });
+    } catch {};
 }
 
-function compileProject()
+async function compileProject()
 {
-    execSync('tsc', { stdio: 'inherit' });
+    try {
+        execSync('tsc', { stdio: 'inherit' });
+    } catch (error) {
+        await fs.rm("tmp", { recursive: true });
+        console.log("Release aborted due to compilation error.");
+        process.exit(1);
+    }
+    await fs.rename("tmp/source", "distribution");
+    await fs.rm("tmp", { recursive: true });
 }
 
 async function cleanupDistributionFolder()
