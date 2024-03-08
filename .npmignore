@@ -3,3 +3,5 @@ node_modules
 examples
 source
 tsconfig.json
+npm-release.ts
+test-scenarios
