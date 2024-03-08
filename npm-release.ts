@@ -4,10 +4,20 @@ import * as path from 'path';
 
 async function prepareRelease()
 {
+    console.log("Preparing release...");
+    console.log("Deleting old distribution folder...");
     await deleteOldDistFolder();
+    console.group("Testing project...");
+    await testProject();
+    console.groupEnd();
+    console.group("Compiling project...");
     await compileProject();
+    console.groupEnd();
+    console.log("Preparing distribution folder...");
     await cleanupDistributionFolder();
     await copyCSSFiles();
+    console.log();
+    console.log("Release ready for publishing.");
 }
 
 async function deleteOldDistFolder()
@@ -16,6 +26,17 @@ async function deleteOldDistFolder()
     {   
         await fs.rm("distribution", { recursive: true });
     } catch {};
+}
+
+async function testProject()
+{
+    try {
+        execSync('tsx ./source/node/index.ts ./source', { stdio: 'inherit' });
+    } catch (error) {
+        console.log("Release aborted due to test error.");
+        process.exit(1);
+    }
+    console.log("All tests passed.");
 }
 
 async function compileProject()
