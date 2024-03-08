@@ -1,22 +1,22 @@
 import { Awaitable } from "deferium";
 import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
+import { BaseReporter } from "./reporters/base.js";
 
-export abstract class TestRunner extends Awaitable
+export class TestRunner extends Awaitable
 {
     public specification: SoftwareSpecification;
 
     testingCompleted = new Awaitable();
     constructor(
-        loadedSpecification: SoftwareSpecification
+        loadedSpecification: SoftwareSpecification,
+        public reporters?: BaseReporter[]
     )
     {
         super();
         this.specification = loadedSpecification;
     }
 
-    abstract runTests(): void;
-
-    protected async runAllTests()
+    async run()
     {
         const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined);
 
@@ -41,25 +41,35 @@ export abstract class TestRunner extends Awaitable
             console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`);
         }
 
+        if (!debugSuite && this.reporters)
+            for (const reporter of this.reporters)
+                reporter.onTestRunStart();
+
         const moduleRuns = [];
         for (const module of this.specification.testModules)
             moduleRuns.push(module.run());
         await Promise.all(moduleRuns);
 
-        this.specification.runCompleted.resolve();
+        if (!debugSuite && this.reporters)
+            for (const reporter of this.reporters)
+                reporter.onTestRunEnd();
+
         this.testingCompleted.resolve();
     }
 }
 
-abstract class TestCommons
+abstract class Serializable
 {
-    runCompleted = new Awaitable();
-
-    abstract printResults(): void;
     abstract serialize(): any;
 }
 
-export abstract class SoftwareSpecification extends TestCommons
+export abstract class Observable extends Serializable
+{
+    runStarted = new Awaitable();
+    runCompleted = new Awaitable();
+}
+
+export abstract class SoftwareSpecification extends Serializable
 {
     public testModules: TestModule[] = [];
 
@@ -73,29 +83,9 @@ export abstract class SoftwareSpecification extends TestCommons
         return this.testSuites.flatMap(suite => suite.tests);
     }
 
-    abstract load(): Promise<TestModule[]>;
-
     protected async loadModule(path: string)
     {
         this.testModules.push(new TestModule(path, await import(/*@vite-ignore*/path)));
-    }
-
-    printResults()
-    {
-        console.log("Testing finished.");
-
-        const totalTestCount = this.tests.length;
-        const failedTestCount = this.tests.filter(test => test.error !== undefined).length;
-
-        if (failedTestCount === 0)
-            console.log("All tests passed.");
-        else
-            console.log(`${failedTestCount} of ${totalTestCount} tests failed.`);
-
-        for (const module of this.testModules)
-        {
-            module.printResults();
-        }
     }
 
     serialize()
@@ -108,17 +98,17 @@ export abstract class SoftwareSpecification extends TestCommons
 
 export class URLSetSpecification extends SoftwareSpecification
 {
-    constructor(public URLs: string[]) { super(); }
-    async load(): Promise<TestModule[]>
+    static async load(URLs: string[]): Promise<URLSetSpecification>
     {
-        for (const testResource of this.URLs)
-            this.testModules.push(new TestModule(testResource, await import(testResource)));
+        const spec = new URLSetSpecification();
 
-        return this.testModules;
+        await Promise.all(URLs.map(url => spec.loadModule(url)));
+
+        return spec;
     }
 }
 
-export class TestModule extends TestCommons
+export class TestModule extends Observable
 {
     testSuites: TestSuite[] = [];
 
@@ -140,6 +130,8 @@ export class TestModule extends TestCommons
 
     async run()
     {
+        this.runStarted.resolve();
+
         const suiteRuns = [];
         for (const suite of this.testSuites)
             suiteRuns.push(suite.run());
@@ -149,11 +141,6 @@ export class TestModule extends TestCommons
         this.runCompleted.resolve();
     }
 
-    printResults()
-    {
-        for (const suite of this.testSuites)
-            suite.printResults();
-    };
     serialize()
     {
         return {
@@ -177,7 +164,7 @@ type ITestSuiteMetadata = {
     };
 };
 
-export class TestSuite extends TestCommons
+export class TestSuite extends Observable
 {
     public className: string;
     public name: string;
@@ -217,6 +204,8 @@ export class TestSuite extends TestCommons
 
     async run(debugTest?: Test)
     {
+        this.runStarted.resolve();
+
         if (this.isSequential)
         {
             const testInstance = new this.testClassConstructor();
@@ -261,24 +250,12 @@ export class TestSuite extends TestCommons
             tests: this.tests.map(test => test.serialize())
         };
     }
-
-    printResults()
-    {
-        console.group(this.name);
-        for (const test of this.tests)
-        {
-            test.printResults();
-        }
-        console.groupEnd();
-    };
-
 }
 
-export class Test extends TestCommons
+export class Test extends Observable
 {
     public error?: TestError;
     public description?: string;
-    public runStarted = new Awaitable();
 
     constructor(
         public testSuite: TestSuite,
@@ -317,21 +294,9 @@ export class Test extends TestCommons
             error: this.error
         };
     }
-
-    public printResults()
-    {
-        if (!this.error)
-            console.log("✔️    " + this.name);
-        else
-        {
-            console.group("❌   " + this.name);
-            this.error.printResults();
-            console.groupEnd();
-        }
-    }
 }
 
-class TestError extends TestCommons
+export class TestError extends Serializable
 {
     public actual: any;
     public expected: any;
@@ -358,11 +323,6 @@ class TestError extends TestCommons
     serialize()
     {
         return Object.assign({}, this);
-    }
-
-    printResults()
-    {
-        console.log(`${this.error.name}: ${this.error.message || "unkown"} --> "${this.sourceFile}:${this.fileLocation.line}:${this.fileLocation.column}"`);
     }
 }
 

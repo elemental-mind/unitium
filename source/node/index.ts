@@ -1,97 +1,60 @@
 #!/usr/bin/env node
 
 import FastGlob from 'fast-glob';
-import { SoftwareSpecification, TestModule, TestRunner, TestSuite } from '../unitium.js';
+import { SoftwareSpecification, TestRunner } from '../unitium.js';
 import path from "path";
+import { BaseReporter } from '../reporters/base.js';
+import { JSONReporter } from '../reporters/jsonReporter.js';
+import { ConsoleReporter } from '../reporters/consoleReporter.js';
 
+type NodeRunnerOptions = typeof defaultNodeOptions;
 const defaultNodeOptions = {
     silent: true,
     outputJSON: false
 };
 
-type NodeRunnerOptions = typeof defaultNodeOptions;
-
-export class NodeTestRunner extends TestRunner
-{
-    public options = Object.assign({}, defaultNodeOptions);
-    constructor(
-        specification: SoftwareSpecification,
-        options?: typeof defaultNodeOptions)
-    {
-        super(specification);
-
-        if (options?.silent !== undefined)
-            this.options.silent = options.silent;
-        if (options?.outputJSON !== undefined)
-            this.options.outputJSON = options.outputJSON;
-    }
-
-    async runTests()
-    {
-        await super.runAllTests();
-
-        if (!this.options?.silent)
-        {
-            if (this.options?.outputJSON)
-                console.log(this.specification.serialize);
-            else
-                this.specification.printResults();
-        }
-    }
-}
-
 export class NodeAppSpecification extends SoftwareSpecification
 {
-    constructor(
-        public fileSystemReferences: string[] = []
-    )
+    static async load(fileSystemReferences: string[] = []): Promise<NodeAppSpecification>
     {
-        super();
+        const spec = new NodeAppSpecification();
+
+        const moduleURLs = await this.getModuleURLs(fileSystemReferences);
+        await Promise.all(moduleURLs.map(url => spec.loadModule(url)));
+
+        return spec;
     }
 
-    async load(): Promise<TestModule[]>
-    {
-        const moduleURLs = await this.getModuleURLs();
-        const moduleLoadPromises = [];
-
-        for (const modulePath of moduleURLs)
-            moduleLoadPromises.push(this.loadModule(modulePath));
-
-        await Promise.all(moduleLoadPromises);
-
-        return this.testModules;
-    }
-
-    protected async getModuleURLs()
+    private static async getModuleURLs(fileSystemReferences: string[])
     {
         let folderGlobs: string[] = ["./**/*.{test,spec}.{js,ts}"];
         let fileReferences: string[] = [];
 
-        if (this.fileSystemReferences.length)
+        if (fileSystemReferences.length)
         {
-            fileReferences = this.fileSystemReferences.filter(ref => ref.endsWith(".js") || ref.endsWith(".ts")).map(file => this.normalizeFilePath(file));
-            folderGlobs = this.fileSystemReferences.filter(ref => !(ref.endsWith(".js") || ref.endsWith(".ts"))).map(folder => this.globifyFilePath(folder));
+            fileReferences = fileSystemReferences.filter(ref => ref.endsWith(".js") || ref.endsWith(".ts")).map(file => this.normalizeFilePath(file));
+            folderGlobs = fileSystemReferences.filter(ref => !(ref.endsWith(".js") || ref.endsWith(".ts"))).map(folder => this.globifyFilePath(folder));
         }
 
-        const folderModules = await FastGlob(folderGlobs,
+        const modulesInSubfolders = await FastGlob(folderGlobs,
             {
                 onlyFiles: true,
                 absolute: true,
                 ignore: ['**/node_modules/**']
             });
 
-        const uniqueModules = [...new Set([...folderModules, ...fileReferences])];
+        const uniqueModules = [...new Set([...modulesInSubfolders, ...fileReferences])];
         const moduleFileURLs = uniqueModules.map(module => `file://${module}`);
 
         return moduleFileURLs;
     }
 
-    private normalizeFilePath(reference: string)
+    private static normalizeFilePath(reference: string)
     {
         return path.resolve(reference).replaceAll("\\", "/");
     }
 
-    private globifyFilePath(reference: string)
+    private static globifyFilePath(reference: string)
     {
         return reference.replaceAll("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
     }
@@ -104,21 +67,29 @@ async function runTests()
         outputJSON: process.argv.includes("--json") || false,
     } as NodeRunnerOptions;
 
-    const [executable, script, ...options] = process.argv;
+    const [executable, script, ...cliArgs] = process.argv;
 
     //We remove all the flags from the options and should be left with files/folder only.
-    while (options[0] && options[0].startsWith("--"))
-        options.pop();
+    while (cliArgs[0] && cliArgs[0].startsWith("--"))
+        cliArgs.pop();
 
-    const fileSystemReferences = options;
+    const fileSystemReferences = cliArgs;
 
-    const spec = new NodeAppSpecification(fileSystemReferences);
-    await spec.load();
-    const runner = new NodeTestRunner(spec, outputOptions);
-    await runner.runTests();
+    const spec = await NodeAppSpecification.load(fileSystemReferences);
+    await new TestRunner(spec, getReporters(outputOptions, spec)).run();
 
     if (spec.tests.some(test => test.error != undefined))
         process.exitCode = 1;
+}
+
+function getReporters(outputOptions: NodeRunnerOptions, spec: SoftwareSpecification): BaseReporter[]
+{
+    if (outputOptions.silent)
+        return [];
+    else if (outputOptions.outputJSON)
+        return [new JSONReporter(spec)];
+    else
+        return [new ConsoleReporter(spec)];
 }
 
 runTests();

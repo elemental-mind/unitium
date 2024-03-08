@@ -439,15 +439,13 @@ If you specify one or more space delimited folders, only test files in these fol
 You can also invoke the runner programmatically through its JS API.
 
 ```typescript
-import { NodeAppSpecification, NodeTestRunner } from "unitium/node-api";
+import { NodeAppSpecification, TestRunner, ConsoleReporter } from "unitium/node-api";
 
 ...
     async runTests()
     {
-        const spec = new NodeAppSpecification();
-        await spec.load();
-        const runner = new NodeTestRunner(spec);
-        await runner.runTests();
+        const spec = await NodeAppSpecification.load();
+        await new TestRunner(spec, [new ConsoleReporter()]).run();
 
         //after the tests are run you can inspect the results
         if(spec.tests.includes(test => test.error !== undefined))
@@ -456,13 +454,16 @@ import { NodeAppSpecification, NodeTestRunner } from "unitium/node-api";
 ...
 ```
 
-This behaves the same as invoking the CLI. If you would like to customize which files/URLs are loaded, a utility class `ULRSetSpecification` is provided:
+This behaves the same as invoking the CLI. If you would like to customize which files/URLs are loaded you can either pass an array of file/folder paths to the `NodeAppSpecification.load` function or utilize the utility class `ULRSetSpecification`:
 
 ```typescript 
-    ...
-        const spec = new URLSetSpecification(["file://C:/path/to/file", "http://specCentral.org/tests.js"]);
-        await spec.load();
+        import { URLSetSpecification, TestRunner, ConsoleReporter } from "unitium/node-api";
+        //...
+        const spec = await URLSetSpecification.load(["file://C:/path/to/file.js", "http://specCentral.org/tests.js"])
+        //...
 ```
-You can control `stdout` output by submitting an `options` object to the runner's constructor.
+You can control `stdout` output by passing an array of one or more reporters to the `TestRunner` constructor. The currently available reporters are:
+- `ConsoleReporter`: Outputs human readable output to stdout.
+- `JSONReporter`: Outputs to stdout in JSON format.
 
 If you have further requirements or need clarification, feel free to raise an issue.

@@ -1,13 +1,11 @@
-import { NodeAppSpecification, NodeTestRunner } from "../node/api.js";
-import { SoftwareSpecification } from "../unitium.js";
+import { NodeAppSpecification } from "../node/api.js";
+import { SoftwareSpecification, TestRunner } from "../unitium.js";
 import path from "path"
 
 export async function evaluateNodeSpecIn(fileOrPath: string): Promise<SoftwareSpecification>
 {
-    const spec = new NodeAppSpecification([path.resolve(fileOrPath)]);
-    await spec.load();
-    const runner = new NodeTestRunner(spec);
-    await runner.runTests();
+    const spec = await NodeAppSpecification.load([path.resolve(fileOrPath)]);
+    const runner = await new TestRunner(spec).run();
 
     return spec;
 }
