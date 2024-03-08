@@ -1,4 +1,4 @@
-import { Sequential } from "../../source/decorators.ts";
+import { Sequential } from "../../source/decorators.js";
 
 @Sequential
 export class SequentialTestSuite

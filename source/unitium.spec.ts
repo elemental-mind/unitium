@@ -5,7 +5,7 @@ export class ModuleParsingTests
 {
     async shouldHandleEmptyTestModulesGracefully()
     {
-        const results = await evaluateNodeSpecIn("./test-scenarios/general/parsing/emptyModule.test.ts");
+        const results = await evaluateNodeSpecIn("test-scenarios/general/parsing/emptyModule.test.ts");
         
         assert(results.testModules.length === 1);
         assert.deepStrictEqual(results.testSuites, []);

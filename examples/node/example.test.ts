@@ -1,6 +1,6 @@
 import assert from "assert";
-import { Sequential, ITestSuiteMemberHooks, Debug } from "./../../source/index.ts";
-import { Test } from "../../source/unitium.ts";
+import { Sequential } from "./../../source/index.js";
+import { Test } from "../../source/unitium.js";
 
 export class BasicExampleTests
 {
@@ -73,7 +73,7 @@ export class SequentialTestSuite
 //If you have global state and need to reset it before running each test, use the @BeforeEach and @AfterEach decorators.
 let moduleVariable = 0;
 
-export class TestSuiteWithGlobalState implements ITestSuiteMemberHooks
+export class TestSuiteWithGlobalState
 {
     static onSetup()
     {

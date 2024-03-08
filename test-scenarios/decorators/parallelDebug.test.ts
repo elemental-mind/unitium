@@ -1,4 +1,4 @@
-import { Debug } from "../../source/decorators.ts";
+import { Debug } from "../../source/decorators.js";
 
 export class ParallelDebugSuite
 {
