@@ -161,8 +161,15 @@ type ITestSuiteMetadata = {
     __meta?: {
         isSequential?: boolean;
         debugTestName?: string;
+        browserTest?: 
+        {
+            strategy: "inBrowser" | "remoteBrowser";
+            url?: string;
+        }
     };
 };
+
+export type ITestSuiteMetaDataMembers = ITestSuiteMetadata["__meta"];
 
 export class TestSuite extends Observable
 {
