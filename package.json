@@ -41,7 +41,8 @@
   },
   "dependencies": {
     "deferium": "^0.1.1",
-    "fast-glob": "^3.2.7"
+    "fast-glob": "^3.2.7",
+    "playwright": "^1.42.1"
   },
   "repository": {
     "type": "git",
