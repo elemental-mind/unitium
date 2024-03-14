@@ -209,7 +209,7 @@ export class TestSuite extends Observable
         return typeof constructorFct === "function" && constructorFct.prototype;
     }
 
-    async run(debugTest?: Test)
+    async run()
     {
         this.runStarted.resolve();
 
