@@ -1,6 +1,6 @@
-import { ConsoleReporter } from "../reporters/consoleReporter.js";
-import { DOMReporter } from "../reporters/domReporter.js";
-import { TestRunner, SoftwareSpecification, Test } from "../unitium.js";
+import { ConsoleReporter } from "../../../reporters/consoleReporter.js";
+import { DOMReporter } from "../../../reporters/domReporter.js";
+import { TestRunner, SoftwareSpecification } from "../../../unitium.js";
 
 export class BrowserAppSpecification extends SoftwareSpecification
 {

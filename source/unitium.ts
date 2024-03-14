@@ -1,6 +1,6 @@
 import { Awaitable } from "deferium";
-import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
 import { BaseReporter } from "./reporters/base.js";
+import { ITestSuiteConstructor } from "./interfaces.js";
 
 export class TestRunner extends Awaitable
 {
@@ -18,7 +18,7 @@ export class TestRunner extends Awaitable
 
     async run()
     {
-        const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined);
+        const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.__meta?.debugTestName !== undefined);
 
         if (debugSuite)
         {
@@ -26,7 +26,7 @@ export class TestRunner extends Awaitable
             const debugModule = this.specification.testModules.find(module => module.testSuites.includes(debugSuite))!;
             this.specification.testModules = this.specification.testModules.filter(module => module === debugModule);
             debugModule.testSuites = debugModule.testSuites.filter(suite => suite === debugSuite);
-            const debugTest = debugSuite.tests.find(test => test.testFunctionName === debugSuite.testClassConstructor.prototype.__meta?.debugTestName)!;
+            const debugTest = debugSuite.tests.find(test => test.testFunctionName === debugSuite.testClassConstructor.__meta?.debugTestName)!;
 
             if (debugSuite.isSequential)
             {
@@ -150,27 +150,6 @@ export class TestModule extends Observable
     }
 }
 
-export type TestSuiteConstructor =
-    IParallelTestSuiteStaticHooks &
-    {
-        new(): ISequentialTestSuiteMemberHooks;
-        prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>;
-    };
-
-type ITestSuiteMetadata = {
-    __meta?: {
-        isSequential?: boolean;
-        debugTestName?: string;
-        browserTest?: 
-        {
-            strategy: "inBrowser" | "remoteBrowser";
-            url?: string;
-        }
-    };
-};
-
-export type ITestSuiteMetaDataMembers = ITestSuiteMetadata["__meta"];
-
 export class TestSuite extends Observable
 {
     public className: string;
@@ -182,7 +161,7 @@ export class TestSuite extends Observable
 
     constructor(
         public testModule: TestModule,
-        public testClassConstructor: TestSuiteConstructor
+        public testClassConstructor: ITestSuiteConstructor
     )
     {
         super();
@@ -196,7 +175,7 @@ export class TestSuite extends Observable
         if (this.testClassConstructor.prototype.onBeforeEach || this.testClassConstructor.prototype.onAfterEach || this.testClassConstructor.prototype.onSetup || this.testClassConstructor.prototype.onTeardown)
             this.containsTestHooks = true;
 
-        if (this.testClassConstructor.prototype.__meta?.isSequential || this.containsTestHooks)
+        if (this.testClassConstructor.__meta?.isSequential || this.containsTestHooks)
             this.isSequential = true;
 
         for (const testFunctionName of testFunctionNames)

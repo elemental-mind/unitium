@@ -67,9 +67,9 @@
     "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */,
     "baseUrl": "./",
     "paths": {
-      "unitium": ["source/index.ts"]
+      "unitium": ["source/api/js/api.ts"]
     }
   },
-  // "exclude": ["example"],
+  "exclude": ["examples", "**/*.test.ts", "**/*.spec.ts"],
   // "include": ["source"]
 }

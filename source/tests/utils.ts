@@ -1,4 +1,4 @@
-import { NodeAppSpecification } from "../node/api.js";
+import { NodeAppSpecification } from "../api/js/node/api.js";
 import { SoftwareSpecification, TestRunner } from "../unitium.js";
 import path from "path"
 
