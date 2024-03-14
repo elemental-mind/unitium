@@ -1,4 +1,4 @@
-import { Browser, User, Server } from "./fullStackTest.js";
+import { Browser, User, Server } from "./fullStackTest.decorators.js";
 
 export class FullStackTest
 {
