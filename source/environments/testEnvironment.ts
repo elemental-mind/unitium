@@ -1,24 +1,33 @@
-import { FusionOf } from "fusium-js";
-import { RPCSender } from "./exProcess/rpc.js";
-import { TestEventProvider } from "../reporters/events.js";
+import { TestSuite } from "../models/testSuite.js";
+
+export enum EnvironmentType
+{
+    RemoteControlled,
+    InProcess
+}
 
 export abstract class TestEnvironment
 {
-    constructor(public testModules: string[]) {};
+    abstract environmentType: EnvironmentType;
+    abstract id: number;
 
-    abstract setup() : Promise<TestEventProvider>;
-    abstract runAllModules(): Promise<void>;
-    abstract runModule(moduleName: string): Promise<void>;
-    abstract runSuite(moduleName: string, suiteName: string): Promise<void>;
-    abstract runTest(moduleName: string, suiteName: string, testName: string): Promise<void>;
+    loadedModules = new Map<string, any>();
+
+    async loadModuleFromURL(url: string)
+    {
+        this.loadedModules.set(url, await import(url));
+    }
+
+    async loadModuleFromString(moduleURL: string, moduleCode: string)
+    {
+        const encodedJs = window.btoa(moduleCode);
+        const blob = new Blob([encodedJs], { type: "application/javascript" });
+        this.loadedModules.set(moduleURL, await import(URL.createObjectURL(blob)));
+    }
+
+    abstract loadSuite(moduleURL: string, suite: TestSuite): Promise<any>;
 }
 
-export class InProcessTestEnvironment extends TestEnvironment
-{
-    
-}
-
-export class ExProcessTestEnvironment extends FusionOf(TestEnvironment, RPCSender)
-{
-
+export type TestEnvironmentConstructor = {
+    getInstance(): Promise<TestEnvironment>;
 }

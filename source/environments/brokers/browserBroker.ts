@@ -11,7 +11,7 @@ export class BrowserBroker
 {
     static browsers = new Map<string, BrowserInstance>();
 
-    private static async createBrowserInstance(options: BrowserOptions)
+    private static async getBrowserInstance(options: BrowserOptions)
     {
         let browserType: BrowserType<{}>;
         switch (options.browserType)
@@ -44,7 +44,7 @@ export class BrowserBroker
     {
         const browserKey = JSON.stringify(options);
         if (!this.browsers.has(browserKey))
-            await this.createBrowserInstance(options);
+            await this.getBrowserInstance(options);
         return this.browsers.get(browserKey)!;
     }
 }
@@ -59,6 +59,11 @@ export class BrowserInstance
     async getTestEnvironment()
     {
         const context = await this.browser.newContext();
+        context.addInitScript({
+            content: `
+                console.log("I am an init script");
+            `
+        })
         return context;
     }
 }
