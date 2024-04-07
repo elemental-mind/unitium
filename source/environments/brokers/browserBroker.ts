@@ -1,6 +1,9 @@
-import { Browser, BrowserContext, BrowserType, chromium} from "playwright";
+import { Browser, BrowserType, chromium } from "playwright";
+import { ExternalEnvironmentOptions } from "../coordination/coordinationServer.js";
 
-type BrowserOptions =
+
+export type BrowserOptions =
+    ExternalEnvironmentOptions &     
     {
         browserType: "chromium";
         debugPort?: number;
@@ -9,10 +12,15 @@ type BrowserOptions =
 
 export class BrowserBroker
 {
-    static browsers = new Map<string, BrowserInstance>();
+    static browsers = new Map<string, Browser>();
 
     private static async getBrowserInstance(options: BrowserOptions)
     {
+        const optionString = JSON.stringify(options);
+
+        if (this.browsers.has(optionString))
+            return this.browsers.get(optionString)!;
+
         let browserType: BrowserType<{}>;
         switch (options.browserType)
         {
@@ -35,7 +43,7 @@ export class BrowserBroker
             args: options.debugPort ? [`--remote-debugging-port=${options.debugPort}`] : []
         });
 
-        this.browsers.set(JSON.stringify(options), new BrowserInstance(browser));
+        this.browsers.set(optionString, browser);
 
         return browser;
     }
@@ -46,24 +54,5 @@ export class BrowserBroker
         if (!this.browsers.has(browserKey))
             await this.getBrowserInstance(options);
         return this.browsers.get(browserKey)!;
-    }
-}
-
-export class BrowserInstance
-{
-    contexts = new Map<string, BrowserContext>();
-    constructor(
-        public browser: Browser
-    ) { }
-
-    async getTestEnvironment()
-    {
-        const context = await this.browser.newContext();
-        context.addInitScript({
-            content: `
-                console.log("I am an init script");
-            `
-        })
-        return context;
     }
 }

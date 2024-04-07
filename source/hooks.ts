@@ -1,10 +1,10 @@
-import { Test } from "./unitium.js";
+import type { TestFunction } from "./models/testFunction.js"
 
 export interface ISequentialTestSuiteMemberHooks
 {
     onSetup?(): void | Promise<void>;
-    onBeforeEach?(test: Test): void | Promise<void>;
-    onAfterEach?(test: Test): void | Promise<void>;
+    onBeforeEach?(test: TestFunction): void | Promise<void>;
+    onAfterEach?(test: TestFunction): void | Promise<void>;
     onTeardown?(): void | Promise<void>;
 }
 

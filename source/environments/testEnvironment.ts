@@ -8,26 +8,24 @@ export enum EnvironmentType
 
 export abstract class TestEnvironment
 {
+    static IDProvider = 0;
     abstract environmentType: EnvironmentType;
-    abstract id: number;
+    public id: number;
 
     loadedModules = new Map<string, any>();
 
-    async loadModuleFromURL(url: string)
+    constructor()
     {
-        this.loadedModules.set(url, await import(url));
+        this.id = ++TestEnvironment.IDProvider;
     }
 
-    async loadModuleFromString(moduleURL: string, moduleCode: string)
-    {
-        const encodedJs = window.btoa(moduleCode);
-        const blob = new Blob([encodedJs], { type: "application/javascript" });
-        this.loadedModules.set(moduleURL, await import(URL.createObjectURL(blob)));
-    }
+    abstract runStatic(suite: TestSuite, fct: string) : Promise<void>;
 
-    abstract loadSuite(moduleURL: string, suite: TestSuite): Promise<any>;
+    abstract instantiateSuite(instantiateSuite: TestSuite): Promise<any>;
+
+    abstract release(): void;
 }
 
-export type TestEnvironmentConstructor = {
-    getInstance(): Promise<TestEnvironment>;
+export type TestEnvironmentConstructor = Function & {
+    acquire(...args: any[]): Promise<TestEnvironment>;
 }

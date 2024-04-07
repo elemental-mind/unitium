@@ -1,5 +1,8 @@
+import type { TestError } from "../models/testError.js";
+import type { TestFunction } from "../models/testFunction.js";
+import type { TestModule } from "../models/testModule.js";
+import type { TestSuite } from "../models/testSuite.js";
 import { BaseReporter } from "./base.js";
-import { TestModule, TestSuite, Test, TestError } from "../unitium.js";
 
 export class ConsoleReporter extends BaseReporter
 {
@@ -40,7 +43,7 @@ export class ConsoleReporter extends BaseReporter
         console.groupEnd();
     }
 
-    printTestResults(test: Test)
+    printTestResults(test: TestFunction)
     {
         if (!test.error)
             console.log("✔️    " + test.name);

@@ -1,7 +1,6 @@
 import { Awaitable } from "deferium";
-import { Transportable } from "./distributedTesting.js";
 
-export abstract class Observable extends Transportable
+export abstract class Observable
 {
     runStarted = new Awaitable();
     runCompleted = new Awaitable();

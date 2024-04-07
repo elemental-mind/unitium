@@ -1,13 +1,16 @@
+import type { TestFunction } from "../models/testFunction.js";
+import type { TestModule } from "../models/testModule.js";
+import type { TestSuite } from "../models/testSuite.js";
 import { EventBasedReporter } from "./base.js";
-import { TestModule, TestSuite, Test } from "../unitium.js";
+
 
 export class DOMReporter extends EventBasedReporter
 {
     private moduleContainers: Map<TestModule, HTMLElement> = new Map();
     private suiteContainers: Map<TestSuite, HTMLElement> = new Map();
-    private testContainers: Map<Test, HTMLTableRowElement> = new Map();
-    private testDetailsElements: Map<Test, HTMLElement> = new Map();
-    private testStatusElements: Map<Test, HTMLElement> = new Map();
+    private testContainers: Map<TestFunction, HTMLTableRowElement> = new Map();
+    private testDetailsElements: Map<TestFunction, HTMLElement> = new Map();
+    private testStatusElements: Map<TestFunction, HTMLElement> = new Map();
 
     onTestRunStart(): void
     {
@@ -22,7 +25,7 @@ export class DOMReporter extends EventBasedReporter
     {
         const moduleOutput = document.createElement("article");
         moduleOutput.className = "unitium-module";
-        moduleOutput.innerHTML = `<code>${testModule.path}</code>`;
+        moduleOutput.innerHTML = `<code>${testModule.filePath}</code>`;
         document.getElementById("unitium-output")?.appendChild(moduleOutput);
         this.moduleContainers.set(testModule, moduleOutput);
 
@@ -46,7 +49,7 @@ export class DOMReporter extends EventBasedReporter
             this.renderTest(test, testOutput);
     }
 
-    private renderTest(test: Test, testOutput: HTMLElement): void
+    private renderTest(test: TestFunction, testOutput: HTMLElement): void
     {
         const outputElement = document.createElement("tr");
         outputElement.className = "unitium-test-result";
@@ -70,7 +73,7 @@ export class DOMReporter extends EventBasedReporter
         this.testStatusElements.set(test, statusElement);
     }
 
-    onTestStart(test: Test)
+    onTestStart(test: TestFunction)
     {
         const detailsElement = this.testDetailsElements.get(test);
         const statusElement = this.testStatusElements.get(test);
@@ -82,7 +85,7 @@ export class DOMReporter extends EventBasedReporter
         }
     }
 
-    onTestEnd(test: Test)
+    onTestEnd(test: TestFunction)
     {
         const detailsElement = this.testDetailsElements.get(test);
         const statusElement = this.testStatusElements.get(test);

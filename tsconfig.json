@@ -70,6 +70,6 @@
       "unitium": ["source/api/js/api.ts"]
     }
   },
-  "exclude": ["examples", "**/*.test.ts", "**/*.spec.ts"],
+  "exclude": ["concepts", "examples", "**/*.test.ts", "**/*.spec.ts"],
   // "include": ["source"]
 }

@@ -1,35 +1,43 @@
-import { Observable } from "../eventPropagation.js";
 import { BaseReporter } from "../reporters/base.js";
 import { SoftwareSpecification } from "./specification.js";
+import { WebSocketServer } from 'ws';
 
-export class TestRunner extends Observable
+export class TestRunner
 {
+    wsServer?: WebSocketServer;
+    private environmentCount = 0;
     public specification: SoftwareSpecification;
 
     constructor(
         loadedSpecification: SoftwareSpecification,
-        public reporters?: BaseReporter[]
+        public reporters?: BaseReporter[],
+        public portRange = [8000, 8100]
     )
     {
-        super();
         this.specification = loadedSpecification;
     }
 
+    getEnvironmentID()
+    {
+        this.environmentCount++;
+        return this.environmentCount.toString();
+    }
+    
     async run()
     {
-        this.runCompleted.resolve();
+        const debugTests = this.specification.tests.filter(test => test.isDebugTarget)
+        const debugTest = debugTests[0];
+        const debugSuite = debugTest.testSuite;
 
-        const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.__meta?.debugTestName !== undefined);
-
-        if (debugSuite)
+        if (debugTests.length)
         {
-            //If we have a debug test, we filter the spec to only the test to debug
-            const debugModule = this.specification.testModules.find(module => module.testSuites.includes(debugSuite))!;
-            this.specification.testModules = this.specification.testModules.filter(module => module === debugModule);
-            debugModule.testSuites = debugModule.testSuites.filter(suite => suite === debugSuite);
-            const debugTest = debugSuite.tests.find(test => test.testFunctionName === debugSuite.testClassConstructor.__meta?.debugTestName)!;
+            if(debugTests.length > 1)
+            {
+                const debugTargetString = debugTests.map(test => `${test.name} in ${test.testSuite.className} in ${test.testSuite.testModule.filePath}`).join("\n");
+                throw new Error("Can only debug one test function at a time. You have multiple debug targets at the moment: \n" + debugTargetString);
+            }
 
-            if (debugSuite.isSequential)
+            if (debugTest.testSuite.isSequential)
             {
                 //If the suite is sequential, we only execute the test and all tests before it
                 const testIndex = debugSuite.tests.indexOf(debugTest);
@@ -39,10 +47,10 @@ export class TestRunner extends Observable
                 //If the suite is parallel, we only execute the test
                 debugSuite.tests = debugSuite.tests.filter(test => test === debugTest);
 
-            console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`);
+            console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.className}" in ${debugTest.testSuite.testModule.filePath}.\nRemove the @Debug decorator to run all tests.`);
         }
 
-        if (!debugSuite && this.reporters)
+        if (!debugTest && this.reporters)
             for (const reporter of this.reporters)
                 reporter.onTestRunStart();
 
@@ -51,10 +59,11 @@ export class TestRunner extends Observable
             moduleRuns.push(module.run());
         await Promise.all(moduleRuns);
 
+        for (const module of this.specification.testModules)
+            module.cleanup();
+
         if (!debugSuite && this.reporters)
             for (const reporter of this.reporters)
                 reporter.onTestRunEnd();
-
-        this.runCompleted.resolve();
     }
 }

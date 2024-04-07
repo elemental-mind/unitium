@@ -1,4 +1,8 @@
-import { SoftwareSpecification, TestModule, TestSuite, Test, Observable } from "../unitium.js";
+import type { TestFunction } from "../models/testFunction.js";
+import type { TestModule } from "../models/testModule.js";
+import type { TestSuite } from "../models/testSuite.js";
+import type { SoftwareSpecification } from "../models/specification.js";
+import { Observable } from "../eventPropagation.js";
 
 export abstract class BaseReporter
 {
@@ -38,6 +42,6 @@ export abstract class EventBasedReporter extends BaseReporter
     onModuleEnd(module: TestModule) { };
     onSuiteStart(suite: TestSuite) { };
     onSuiteEnd<T>(suite: TestSuite) { };
-    onTestStart(test: Test) { };
-    onTestEnd<T>(test: Test) { };
+    onTestStart(test: TestFunction) { };
+    onTestEnd<T>(test: TestFunction) { };
 }

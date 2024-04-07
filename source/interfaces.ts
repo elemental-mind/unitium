@@ -1,3 +1,4 @@
+import { TestEnvironmentConstructor } from "./environments/testEnvironment.js";
 import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
 
 export interface TestModuleData
@@ -53,9 +54,11 @@ export interface ITestSuiteMetadata
 {
     isSequential?: boolean;
     debugTestName?: string;
-    browserTest?:
-    {
-        strategy: "inBrowser" | "remoteBrowser";
-        url?: string;
-    };
+    defaultEnvironment?: TestEnvironmentConstructor;
+    testFunctions?: Record<string, ITestFunctionMetadata>;
 };
+
+export interface ITestFunctionMetadata
+{
+    environment: TestEnvironmentConstructor;
+}

@@ -1,6 +1,9 @@
+import { FullStackSetup } from "../source/environments/setups/preDefined/fullStackSetup.js";
 import { Browser, User, Server } from "./fullStackTest.decorators.js";
 
-export class FullStackTest
+
+@FullStackSetup.Config("localhost:5000", "server.ts")
+export class FullstackTestSuite extends 
 {
     onServerSetup()
     {
@@ -14,6 +17,7 @@ export class FullStackTest
 
     onPageSetup()
     {
+
 
     }
 

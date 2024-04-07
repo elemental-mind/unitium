@@ -1,6 +1,4 @@
-import { Transportable } from "../distributedTesting.js";
-
-export class TestError extends Transportable
+export class TestError
 {
     public actual: any;
     public expected: any;
@@ -15,7 +13,6 @@ export class TestError extends Transportable
 
     constructor(private error: Error)
     {
-        super();
         Object.assign(this, error);
         this.name = error.name;
         const errorPosition = error.stack!.split("\n    at")[1].trim();
