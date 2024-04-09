@@ -1,26 +1,26 @@
-import { ClassDeclaration, Module, parseFile } from "@swc/core";
 import { Observable } from "../eventPropagation.js";
 import { TestSuite } from "./testSuite.js";
-import { TestEnvironmentConstructor } from "../environments/testEnvironment.js";
 import { readFile, unlink, writeFile } from "fs/promises";
 import { TestHook } from "./testHook.js";
 import { TestFunction } from "./testFunction.js";
 import { FileSystemHost, Project, SourceFile, SyntaxKind } from "ts-morph";
+import { ITestSuiteConstructor } from "../interfaces.js";
+import { EnvironmentDecorator } from "../setups/testSetup.js";
 import path from "path";
 
 export class TestModule extends Observable
 {
     public testSuites: TestSuite[] = [];
-    public environmentModules = new Map<TestEnvironmentConstructor, string>();
-    
+    public environmentModules = new Map<EnvironmentDecorator, string>();
+    public temporaryFiles: string[] = [];
+
     get tests()
     {
         return this.testSuites.flatMap(suite => suite.tests);
     }
 
     private constructor(
-        public filePath: string,
-        public ast: Module
+        public filePath: string
     )
     {
         super();
@@ -28,14 +28,9 @@ export class TestModule extends Observable
 
     static async fromFile(filePath: string)
     {
-        let parsed = await parseFile(filePath, {
-            syntax: "typescript",
-            target: "es2020",
-            decorators: true
-        });
-        const testSuite = new TestModule(filePath, parsed);
-        await testSuite.analyzeFile();
-        return testSuite;
+        const testModule = new TestModule(filePath);
+        await testModule.analyzeFile();
+        return testModule;
     }
 
     async run()
@@ -53,29 +48,45 @@ export class TestModule extends Observable
 
     private async analyzeFile()
     {
-        const exportedClasses = this.ast.body.filter(item => item.type === 'ExportDeclaration' && item.declaration.type === 'ClassDeclaration');
+        const skeletizer = new Skeletizer(this.filePath, await readFile(this.filePath, { encoding: "utf8" }));
 
-        for (const exportedClass of exportedClasses)
-            this.testSuites.push(new TestSuite(this, exportedClass as ClassDeclaration));
+        let module;
+
+        if (skeletizer.needsSkeletizing())
+        {
+            const skeletonModuleName = this.filePath.split(".").splice(-1, 0, "skeleton").join(".");
+            await writeFile(skeletonModuleName, await skeletizer.getStrippedModule());
+            this.temporaryFiles.push(skeletonModuleName);
+
+            module = await import(skeletonModuleName);
+        }
+        else
+        {
+            module = await import(this.filePath);
+        }
+
+        for (const exportedClass of Object.values(module))
+            this.testSuites.push(new TestSuite(this, exportedClass as ITestSuiteConstructor));
     }
 
-    async createEnvironmentModuleAndReturnPath(environmentType: TestEnvironmentConstructor): Promise<string>
+    async createEnvironmentModuleAndReturnPath(environmentDecorator: EnvironmentDecorator): Promise<string>
     {
-        if(this.environmentModules.has(environmentType))
-            return this.environmentModules.get(environmentType)!;
+        if (this.environmentModules.has(environmentDecorator))
+            return this.environmentModules.get(environmentDecorator)!;
 
         //We insert the environment type before the .ts extension => example.test.ts -> example.test.environment.ts
-        const environmentModulePath = this.filePath.split(".").splice(-1, 0, environmentType.name).join(".");
+        const environmentModulePath = this.filePath.split(".").splice(-1, 0, environmentDecorator.name).join(".");
 
-        await writeFile(environmentModulePath, await this.getEnvironmentModuleString(environmentType));
-        this.environmentModules.set(environmentType, environmentModulePath);
+        await writeFile(environmentModulePath, await this.getEnvironmentModuleString(environmentDecorator));
+        this.temporaryFiles.push(environmentModulePath);
+        this.environmentModules.set(environmentDecorator, environmentModulePath);
         return environmentModulePath;
     }
 
-    async getEnvironmentModuleString(environmentType: TestEnvironmentConstructor)
+    private async getEnvironmentModuleString(environmentDecorator: EnvironmentDecorator)
     {
-        const testFunctionsForEnvironment = this.tests.filter(test => test.environment === environmentType);
-        const testHooksForEnvironment = this.testSuites.flatMap(suite => suite.hooks).filter(hook => hook.environment === environmentType);
+        const testFunctionsForEnvironment = this.tests.filter(test => test.executionEnvironment === environmentDecorator);
+        const testHooksForEnvironment = this.testSuites.flatMap(suite => suite.hooks).filter(hook => hook.environment === environmentDecorator);
 
         const source = await readFile(this.filePath, { encoding: "utf-8" });
 
@@ -86,11 +97,10 @@ export class TestModule extends Observable
 
     async cleanup()
     {
-        for (const [environmentType, environmentModulePath] of this.environmentModules)
+        for (const file of this.temporaryFiles)
         {
-            await unlink(environmentModulePath);
+            await unlink(file);
         }
-        this.environmentModules.clear();
     }
 }
 
@@ -179,5 +189,68 @@ class TreeShaker
         }
 
         await this.sourceFile.save();
+    }
+}
+
+class Skeletizer
+{
+    private project: Project;
+    private sourceFile: SourceFile;
+
+    constructor(private filePath: string, private source: string)
+    {
+        this.project = new Project({ useInMemoryFileSystem: true });
+        this.sourceFile = this.project.createSourceFile(filePath, source);
+    }
+
+    needsSkeletizing()
+    {
+        return this.sourceFile
+            .getImportDeclarations()
+            .some(imp => imp.getModuleSpecifier().getText().endsWith('.test-setup.ts'));
+    }
+
+    async getStrippedModule(): Promise<string>
+    {
+        this.removeNonSetupModules();
+        this.removeNonExportedClasses();
+        this.removeNonPublicMethods();
+
+        await this.sourceFile.save();
+        return this.sourceFile.print();
+    }
+
+    private removeNonSetupModules()
+    {
+        this.sourceFile
+            .getImportDeclarations()
+            .filter(imp => 
+            {
+                const importFileName = imp.getModuleSpecifier().getText()
+                const isSetupImport = importFileName.endsWith('.test-setup.ts');
+                const isDecoratorFile = path.join(path.dirname(this.filePath), importFileName) === path.join(path.dirname(this.filePath), "../decorators.ts");
+                return !(isSetupImport || isDecoratorFile);
+            })
+            .forEach(imp => imp.remove());
+    }
+
+    private removeNonExportedClasses()
+    {
+        this.sourceFile
+            .getClasses()
+            .filter(cls => !cls.isExported())
+            .forEach(cls => cls.remove());
+    }
+
+    private removeNonPublicMethods()
+    {
+        for (const cls of this.sourceFile.getClasses())
+        {
+            for (const member of cls.getInstanceMethods())
+            {
+                if (!member.hasModifier(SyntaxKind.PublicKeyword))
+                    member.remove();
+            }
+        }
     }
 }

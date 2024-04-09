@@ -3,7 +3,7 @@ import { BrowserPageEnvironment } from "../../environments/exProcessEnvironments
 import { NodeExternalProcessEnvironment } from "../../environments/exProcessEnvironments/node/environment.js";
 import { PlaywrightPageEnvironment } from "../../environments/inProcessEnvironments/playwrightPage/environment.js";
 import { TestEnvironment } from "../../environments/testEnvironment.js";
-import { EnvironmentDecoratorFunction, SetupManager, TestSetup } from "../testSetup.js";
+import { EnvironmentDecorator, SetupManager, TestSetup } from "../testSetup.js";
 
 export interface FullStackSetupOptions
 {
@@ -23,8 +23,9 @@ export class FullStackSetup extends TestSetup
     static Browser = SetupManager.generateMethodDecorator();
     static User = SetupManager.generateMethodDecorator();
     static Server = SetupManager.generateMethodDecorator();
+    static Default = FullStackSetup.Server;
 
-    public environmentMap?: Map<EnvironmentDecoratorFunction | null, TestEnvironment>;
+    public environmentMap?: Map<EnvironmentDecorator | null, TestEnvironment>;
 
     //Hooks
     async loadEnvironments(clss: any)
@@ -35,7 +36,7 @@ export class FullStackSetup extends TestSetup
         const userEnvironment = await PlaywrightPageEnvironment.acquire({browserType: "chromium", frameworkServerURL: configuration.frameworkServerURL});
         const pageEnvironment = await BrowserPageEnvironment.acquire(userEnvironment, configuration.pageURL, configuration.frameworkServerURL);
 
-        this.environmentMap = new Map<EnvironmentDecoratorFunction|null, TestEnvironment>([
+        this.environmentMap = new Map<EnvironmentDecorator|null, TestEnvironment>([
             [FullStackSetup.Server, serverEnvironment],
             [FullStackSetup.User, userEnvironment],
             [FullStackSetup.Browser, pageEnvironment]

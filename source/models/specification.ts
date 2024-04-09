@@ -20,7 +20,7 @@ export class SoftwareSpecification
 
     get testEnvironments()
     {
-        return new Set(this.tests.map(test => test.environment));
+        return new Set(this.tests.map(test => test.executionEnvironment));
     }
 
     static async fromFileReferences(fileSystemReferences: string[] = [])

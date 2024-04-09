@@ -1,68 +1,87 @@
 import { TestEnvironment } from "../environments/testEnvironment.js";
-import { ITestSuiteConstructor } from "../interfaces.js";
+import { ArgsArray, ITestSuiteConstructor } from "../interfaces.js";
 
-type SuiteSetupConfiguration = any;
-export type EnvironmentDecoratorFunction = ((clss: any, methodName: string) => void) & { isEnvironmentDecorator: boolean; };
+export type EnvironmentDecorator = ((clss: any, methodName: string) => void) & { isEnvironmentDecorator: boolean; };
+export type ConfigurationDecorator<T extends any[] = any[]> = ((...args: ArgsArray<T>) => (clss: ITestSuiteConstructor) => void) & { isConfigurationDecorator: boolean; };
 
-export type ITestSetupConstructor =
-    any & { new(): TestSetup; };
+export interface ITestSetupConstructor<T extends any[] = any[]>
+{
+    new(): TestSetup;
+    Default: EnvironmentDecorator;
+    Config: ConfigurationDecorator<T>;
+};
 
 export abstract class TestSetup
 {
-    abstract loadEnvironments(clss: any): Promise<Map<EnvironmentDecoratorFunction | null, TestEnvironment>>;
+    abstract loadEnvironments(clss: any): Promise<Map<EnvironmentDecorator, TestEnvironment>>;
     abstract disposeEnvironments(): Promise<void>;
 }
 
 class TestSetupManager
 {
-    public setups = new Set<typeof TestSetup>();
-    public decoratorToSetupMap = new Map<EnvironmentDecoratorFunction, ITestSetupConstructor>();
-    public suiteSetupConfigurations = new Map<ITestSuiteConstructor, SuiteSetupConfiguration>();
-    public suiteSetupMetadata = new Map<ITestSuiteConstructor, Record<string, EnvironmentDecoratorFunction>>();
+    public setups = new Map<ITestSetupConstructor<any>, { multiEnvironment: boolean; }>();
+    public decoratorToSetupMap = new Map<EnvironmentDecorator | ConfigurationDecorator, ITestSetupConstructor>();
 
-    public generateMethodDecorator(): EnvironmentDecoratorFunction
+    public generateConfigDecorator<T extends any[]>(): ConfigurationDecorator<T>
     {
-        const suiteSetupMetadata = this.suiteSetupMetadata;
-        const fct = function (clss: any, methodName: string)
+        const decorator = (...args: ArgsArray<T>) =>
         {
-            if (suiteSetupMetadata.has(clss))
-                suiteSetupMetadata.get(clss)![methodName] = fct;
-            else
-                suiteSetupMetadata.set(clss, { [methodName]: fct });
-        };
-        fct.isEnvironmentDecorator = true;
-        return fct;
-    }
-
-    public generateConfigDecorator<T>(): (args: T) => (clss: ITestSuiteConstructor) => void
-    {
-        const suiteSetupConfigurations = this.suiteSetupConfigurations;
-        return function (args: T)
-        {
-            return function (clss: ITestSuiteConstructor)
+            return (clss: ITestSuiteConstructor) =>
             {
-                suiteSetupConfigurations.set(clss, args);
+                this.ensureSetupMetadata(clss);
+                clss.__meta!.setup!.configuration = {
+                    decorator: decorator as ConfigurationDecorator,
+                    data: args
+                };
             };
         };
+        decorator.isConfigurationDecorator = true;
+        return decorator;
     }
 
-    public getConfigurationFor<T>(testSuite: ITestSuiteConstructor): T
+    public generateMethodDecorator(): EnvironmentDecorator
     {
-        return this.suiteSetupConfigurations.get(testSuite);
+        const decorator = (clss: ITestSuiteConstructor, methodName: string) =>
+        {
+            this.ensureSetupMetadata(clss);
+            clss.__meta!.setup!.functions![methodName] = decorator;
+        };
+        decorator.isEnvironmentDecorator = true;
+        return decorator;
+    }
+
+    private ensureSetupMetadata(clss: ITestSuiteConstructor)
+    {
+        if (!clss.__meta)
+            clss.__meta = {};
+        if (!clss.__meta.setup)
+            clss.__meta.setup = {
+                functions: {}
+            };
     }
 
     public registerSetup(setup: ITestSetupConstructor)
     {
-        this.setups.add(setup);
-        for (const key in setup)
+        let environmentDecoratorCount = 0;
+        for (const [elementName, element] of Object.entries(setup))
         {
-            if (Object.prototype.hasOwnProperty.call(setup, key))
+            if (typeof element === "function" && (element.isEnvironmentDecorator || element.isConfigurationDecorator))
             {
-                const element = setup[key];
-                if (typeof element === "function" && element.isEnvironmentDecorator)
-                    this.decoratorToSetupMap.set(element, setup);
+                this.decoratorToSetupMap.set(element, setup);
+
+                if (element.isEnvironmentDecorator)
+                    environmentDecoratorCount++;
             }
         }
+
+        this.setups.set(setup, {
+            multiEnvironment: environmentDecoratorCount > 1
+        });
+    }
+
+    public isMultiEnvironmentSetup(setup: ITestSetupConstructor)
+    {
+        return this.setups.get(setup)!.multiEnvironment;
     }
 }
 

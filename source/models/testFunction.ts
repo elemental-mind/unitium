@@ -1,12 +1,9 @@
-import { ClassMethod, Identifier } from "@swc/core";
-import { TestEnvironmentConstructor } from "../environments/testEnvironment.js";
 import { Observable } from "../eventPropagation.js";
 import { titleCase, camelToNormal } from "../formatting.js";
+import { EnvironmentDecorator } from "../setups/testSetup.js";
 import { InternalError } from "../unitium.js";
 import { TestError } from "./testError.js";
-
 import { TestSuite } from "./testSuite.js";
-import { getDecoratorDefinedEnvironment } from "../decorators.js";
 
 export class TestFunction extends Observable
 {
@@ -14,23 +11,20 @@ export class TestFunction extends Observable
     public name: string;
     public error?: TestError;
     public description?: string;
-    public environment: TestEnvironmentConstructor;
+    public executionEnvironment: EnvironmentDecorator;
     public isDebugTarget: boolean;
 
     constructor(
         public testSuite: TestSuite,
-        public testFunctionNode: ClassMethod
+        public testFunction: Function
     )
     {
         super();
 
-        this.functionName = (testFunctionNode.key as Identifier).value;
+        this.functionName = testFunction.name;
         this.name = titleCase(camelToNormal(this.functionName))
-
-        this.environment = getDecoratorDefinedEnvironment(testFunctionNode.function) ?? this.testSuite.defaultTestEnvironmentType;
-
-        const debugDecorator = testFunctionNode.function.decorators?.find(decorator => decorator.expression.type === "Identifier" && decorator.expression.value === "Debug");
-        this.isDebugTarget = debugDecorator !== undefined;
+        this.executionEnvironment = this.testSuite.testClass.__meta?.setup?.functions?.[this.functionName] ?? this.testSuite.setupType.Default;
+        this.isDebugTarget = this.testSuite.testClass.__meta?.debugTestName === this.functionName;
     }
 
     async run(testFixture: any)

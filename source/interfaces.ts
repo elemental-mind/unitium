@@ -1,5 +1,7 @@
-import { TestEnvironmentConstructor } from "./environments/testEnvironment.js";
 import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
+import { EnvironmentDecorator, ITestSetupConstructor, ConfigurationDecorator } from "./setups/testSetup.js";
+
+export type ArgsArray<T extends any[]> = [...T];
 
 export interface TestModuleData
 {
@@ -54,11 +56,15 @@ export interface ITestSuiteMetadata
 {
     isSequential?: boolean;
     debugTestName?: string;
-    defaultEnvironment?: TestEnvironmentConstructor;
-    testFunctions?: Record<string, ITestFunctionMetadata>;
+    setup?: ITestSetupMetadata;
 };
 
-export interface ITestFunctionMetadata
+export interface ITestSetupMetadata
 {
-    environment: TestEnvironmentConstructor;
+    default?: ITestSetupConstructor;
+    configuration?: {
+        decorator: ConfigurationDecorator;
+        data: any;
+    }
+    functions?: Record<string, EnvironmentDecorator>;
 }

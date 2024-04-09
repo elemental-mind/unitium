@@ -1,46 +1,40 @@
-import { ClassDeclaration, ClassMethod, Identifier } from "@swc/core";
-import { TestEnvironment, TestEnvironmentConstructor } from "../environments/testEnvironment.js";
+import { TestEnvironment } from "../environments/testEnvironment.js";
 import { capitalCase, camelToNormal } from "../formatting.js";
 import { TestFunction } from "./testFunction.js";
 import { TestModule } from "./testModule.js";
-import { getDecoratorDefinedEnvironment, getDecoratorNames } from "../decorators.js";
 import { TestHook, TestHookType } from "./testHook.js";
-import { NodeInProcessEnvironment } from "../environments/inProcessEnvironments/node/environment.js";
 import { Observable } from "../eventPropagation.js";
+import { ITestSuiteConstructor } from "../interfaces.js";
+import { EnvironmentDecorator, ITestSetupConstructor, SetupManager, TestSetup } from "../setups/testSetup.js";
+import { DefaultSetup } from "../setups/preDefined/defaultSetup.js";
 
 export class TestSuite extends Observable
 {
-    static setupIdProvider = 0;
     public className: string;
     public name: string;
     public tests: TestFunction[] = [];
     public hooks: TestHook[] = [];
-    public defaultTestEnvironmentType;
+    public setupType: ITestSetupConstructor;
 
     constructor(
         public testModule: TestModule,
-        public testClassNode: ClassDeclaration
+        public testClass: ITestSuiteConstructor
     )
     {
         super();
-        this.className = testClassNode.identifier.value;
+        this.className = testClass.name;
         this.name = capitalCase(camelToNormal(this.className));
 
-        this.defaultTestEnvironmentType = getDecoratorDefinedEnvironment(testClassNode) ?? NodeInProcessEnvironment;
+        this.setupType = this.detectTestSetup();
 
-        for (const member of this.classMethods)
-            this.parsePublicMemberFunction(member);
+        for (const [memberName, member] of Object.entries(this.testClass.prototype))
+            if (typeof member === "function")
+                this.parsePublicMemberFunction(member);
     }
 
     get hasSequentialDecorator()
     {
-        return getDecoratorNames(this.testClassNode)?.includes("Sequential");
-    }
-
-    private get classMethods()
-    {
-        return this.testClassNode.body
-            .filter((member): member is ClassMethod => member.type === "ClassMethod" && member.accessibility === "public");
+        return this.testClass.__meta?.isSequential === true;
     }
 
     get hasTestHooks()
@@ -50,13 +44,7 @@ export class TestSuite extends Observable
 
     get isExecutedInMultipleEnvironments()
     {
-        const baseEnvironment = this.defaultTestEnvironmentType;
-        for (const test of this.tests)
-        {
-            if (test.environment !== baseEnvironment)
-                return true;
-        }
-        return false;
+        return SetupManager.isMultiEnvironmentSetup(this.setupType);
     }
 
     get isSequential()
@@ -64,17 +52,35 @@ export class TestSuite extends Observable
         return this.hasSequentialDecorator || this.hasTestHooks || this.isExecutedInMultipleEnvironments;
     }
 
-    private parsePublicMemberFunction(memberFunction: ClassMethod)
+    private detectTestSetup(): ITestSetupConstructor
     {
-        const functionName = (memberFunction.key as Identifier).value;
-        const hookMatch = functionName.match(TestHook.regex);
-
-        if (!hookMatch)
-        {
-            if (functionName !== "constructor")
-                this.tests.push(new TestFunction(this, memberFunction));
-        }
+        const setupMetadata = this.testClass.__meta?.setup;
+        if (!setupMetadata)
+            return DefaultSetup;
         else
+        {
+            if (setupMetadata.configuration)
+                return SetupManager.decoratorToSetupMap.get(setupMetadata.configuration?.decorator)!;
+            else
+            {
+                const functionDecorators = Object.values(setupMetadata.functions!);
+                const referencedSetups = functionDecorators.map(decorator => SetupManager.decoratorToSetupMap.get(decorator));
+                const uniqueSetups = new Set(referencedSetups);
+                if (uniqueSetups.size > 1)
+                    throw new Error("Environment references of two or more setups used on one test suite.");
+                else
+                    return [...uniqueSetups][0]!;
+            }
+        }
+    }
+
+    private parsePublicMemberFunction(memberFunction: Function)
+    {
+        const hookMatch = memberFunction.name.match(TestHook.regex);
+
+        if (!hookMatch && !(memberFunction.name === "constructor"))
+            this.tests.push(new TestFunction(this, memberFunction));
+        else if (hookMatch)
             this.hooks.push(new TestHook(this, memberFunction));
     }
 
@@ -82,13 +88,15 @@ export class TestSuite extends Observable
     {
         this.runStarted.resolve();
 
+        const setup = new this.setupType();
+
         if (this.isSequential)
         {
-            const environmentInstances = await this.initializeSerialInstances();
+            const environmentInstances = await this.initializeSerialInstances(setup);
 
             for (const test of this.tests)
             {
-                const suiteInstance = await environmentInstances.get(test.environment)!;
+                const suiteInstance = await environmentInstances.get(test.executionEnvironment)!;
                 await suiteInstance.onBeforeEach();
                 if (!await suiteInstance.runTest(test))
                     break;
@@ -101,8 +109,7 @@ export class TestSuite extends Observable
         {
             const testRunPromises = [];
 
-            //We only run parallel tests in single-environment suites. Hence the default environment is our execution environment.
-            const {instances, environment} = await this.initializeParallelInstances();
+            const {instances, environment} = await this.initializeParallelInstances(setup);
 
             for (const test of this.tests)
             {
@@ -112,50 +119,41 @@ export class TestSuite extends Observable
 
             await Promise.all(testRunPromises);
 
-            await environment.runStatic(this.testModule.filePath, this.className, "onTeardown");
+            await environment.runStatic(this, "onTeardown");
         }
 
         this.runCompleted.resolve();
     }
 
-    private async initializeSerialInstances()
+    private async initializeSerialInstances(setup: TestSetup)
     {
-        const setupID = TestSuite.setupIdProvider++;
-        const testEnvironmentTypes = new Set(this.tests.map(test => test.environment)).values();
-        const suiteInstances = new Map<TestEnvironmentConstructor, Promise<TestSuiteInstance>>();
+        const loadedEnvironments = await setup.loadEnvironments(this);
+        const suiteInstances = new Map<EnvironmentDecorator, Promise<TestSuiteInstance>>();
 
-        for (const envType of testEnvironmentTypes)
-            suiteInstances.set(envType, this.loadEnvAndInstantiate(envType, setupID));
+        for (const [environmentType, environment] of loadedEnvironments)
+            suiteInstances.set(environmentType, environment.instantiateSuite(this));
 
-        await Promise.all(suiteInstances.values());
         return suiteInstances;
     }
 
-    private async initializeParallelInstances()
+    private async initializeParallelInstances(setup: TestSetup)
     {
-        const setupID = TestSuite.setupIdProvider++;
-        const environment = await this.defaultTestEnvironmentType.acquire(setupID);
+        const loadedEnvironments = await setup.loadEnvironments(this);
+
+        //We only run parallel tests in single-environment suites. Hence the default environment is our execution environment.
+        const environment = loadedEnvironments.get(this.setupType.Default)!;
+
         const instances = new Map<TestFunction, Promise<TestSuiteInstance>>();
 
-        await environment.runStatic(this.testModule.filePath, this.className, "onSetup");
+        await environment.runStatic(this, "onSetup");
 
         for (const test of this.tests)
-        {
-            instances.set(test, TestSuiteInstance.create(this, environment));
-        }
+            instances.set(test, environment.instantiateSuite(this));
 
-        return {instances, environment};
+        return { instances, environment };
     }
 
-    private async loadEnvAndInstantiate(envType: TestEnvironmentConstructor, setupID: number)
-    {
-        const environment = await envType.acquire(setupID);
-        const instance = await TestSuiteInstance.create(this, environment);
-        await instance.setup();
-        return instance;
-    }
-
-    private async finalizeSerialInstances(instances: Map<TestEnvironmentConstructor, Promise<TestSuiteInstance>>)
+    private async finalizeSerialInstances(instances: Map<EnvironmentDecorator, Promise<TestSuiteInstance>>)
     {
         const tearDownPromises = [];
         for (const [envType, suiteInstancePromise] of instances)

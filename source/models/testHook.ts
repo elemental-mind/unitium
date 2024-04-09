@@ -1,12 +1,11 @@
-import { ClassMethod, Identifier } from "@swc/core";
 import { TestSuite } from "./testSuite.js";
-import { TestEnvironmentConstructor } from "../environments/testEnvironment.js";
+import { EnvironmentDecorator } from "../setups/testSetup.js";
 
 export type TestHookType = "Setup" | "Teardown" | "Before" | "After";
 
 export class TestHook
 {
-    public environment: TestEnvironmentConstructor;
+    public environment: EnvironmentDecorator;
     public type: TestHookType;
     public functionName: string;
 
@@ -14,17 +13,31 @@ export class TestHook
 
     constructor(
         public testSuite: TestSuite,
-        public testHookNode: ClassMethod
+        public testHook: Function
     )
     {
-        this.functionName = (testHookNode.key as Identifier).value;
+        this.functionName = testHook.name;
         const match = this.functionName.match(TestHook.regex)!;
-        const { type , environment: environmentString } = match.groups!;
 
-        if (environmentString && !registeredEnvironments.has(environmentString))
-            throw new Error(`Unrecognized environment in hook ${this.functionName} in suite ${this.testSuite.className}`);
+        if(!match.groups)
+            throw new Error("Could not match Hook name");
+        
+        const setup = this.testSuite.setupType;
+
+        const type = match.groups.type;
+        const environmentString = match.groups.environment as keyof typeof setup;
+        const environmentDecorator = setup[environmentString] as EnvironmentDecorator;
+
+        if (environmentString)
+        {
+            if(!environmentDecorator)
+                throw new Error(`Unrecognized environment in hook ${this.functionName} in suite ${this.testSuite.className}`);
+            else
+                this.environment = environmentDecorator;
+        }
+        else
+            this.environment = setup.Default;
         
         this.type = type as typeof this.type;
-        this.environment = environmentString ? registeredEnvironments.get(environmentString)! : this.testSuite.defaultTestEnvironmentType;
     }
 }
