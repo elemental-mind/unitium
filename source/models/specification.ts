@@ -1,6 +1,7 @@
 import FastGlob from "fast-glob";
-import { TestModule } from "./testModule.js";
 import path from "path";
+import { TestModule } from "./testModule.js";
+import { File } from "./file.js";
 
 export class SoftwareSpecification
 {
@@ -27,23 +28,24 @@ export class SoftwareSpecification
     {
         const spec = new SoftwareSpecification(fileSystemReferences);
         await spec.loadAndAnalyze();
+        return spec;
     }
 
     private async loadAndAnalyze()
     {
         const loading = [];
-        for (const path of await this.getModuleFilePaths()) 
+        for (const path of await this.getModuleFiles()) 
             loading.push(this.loadModuleAndAddToModules(path));
         await Promise.all(loading);
     }
 
-    private async loadModuleAndAddToModules(path: string)
+    private async loadModuleAndAddToModules(file: File)
     {
-        const testModule = await TestModule.fromFile(path);
+        const testModule = await TestModule.fromFile(file);
         this.testModules.push(testModule);
     }
 
-    private async getModuleFilePaths()
+    private async getModuleFiles()
     {
         let folderGlobs: string[] = ["./**/*.{test,spec}.{js,ts}"];
         let fileReferences: string[] = [];
@@ -62,17 +64,17 @@ export class SoftwareSpecification
             });
 
         const uniqueModules = [...new Set([...modulesInSubfolders, ...fileReferences])];
-        // const moduleFileURLs = uniqueModules.map(module => `file://${module}`);
+        const moduleFiles = uniqueModules.map(filePath => new File(filePath));
 
-        return uniqueModules;
+        return moduleFiles;
     }
 
-    private normalizeFilePath(reference: string)
+    protected normalizeFilePath(reference: string)
     {
         return path.resolve(reference).replaceAll("\\", "/");
     }
 
-    private globifyFilePath(reference: string)
+    protected globifyFilePath(reference: string)
     {
         return reference.replaceAll("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
     } 

@@ -1,6 +1,5 @@
-import { NodeInProcessEnvironment } from "../../environments/inProcessEnvironments/node/environment.js";
 import { TestEnvironment } from "../../environments/testEnvironment.js";
-import { ITestSuiteConstructor } from "../../interfaces.js";
+import type { TestSuite } from "../../models/testSuite.js";
 import { EnvironmentDecorator, SetupManager, TestSetup } from "../testSetup.js";
 
 const defaultEnvironmentMap = new Map<EnvironmentDecorator, TestEnvironment>();
@@ -11,14 +10,19 @@ export class DefaultSetup extends TestSetup
     static Config = SetupManager.generateConfigDecorator<[]>();
 
     //Method Decorators
-    static Default = SetupManager.generateMethodDecorator();
+    static Default = SetupManager.generateEnvironmentDecorator("default");
 
-    async loadEnvironments(clss: ITestSuiteConstructor)
+    async loadEnvironments(suite: TestSuite)
     {
-        if(!defaultEnvironmentMap.has(DefaultSetup.Default))
+        if (!defaultEnvironmentMap.has(DefaultSetup.Default))
+        {
+            const { NodeInProcessEnvironment } = await import("../../environments/inProcessEnvironments/node/environment.js");
             defaultEnvironmentMap.set(DefaultSetup.Default, await NodeInProcessEnvironment.acquire());
+        }
         return defaultEnvironmentMap;
     }
 
-    async disposeEnvironments() {}
+    async disposeEnvironments() { }
 }
+
+SetupManager.registerSetup(DefaultSetup);

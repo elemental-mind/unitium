@@ -1,4 +1,5 @@
-import { TestSuite } from "../models/testSuite.js";
+import type { TestSuite, TestSuiteInstance } from "../models/testSuite.js";
+import type { EnvironmentDecorator } from "../setups/testSetup.js";
 
 export enum EnvironmentType
 {
@@ -14,7 +15,9 @@ export abstract class TestEnvironment
 
     loadedModules = new Map<string, any>();
 
-    constructor()
+    constructor(
+        public domain: EnvironmentDecorator
+    )
     {
         this.id = ++TestEnvironment.IDProvider;
     }
@@ -27,5 +30,5 @@ export abstract class TestEnvironment
 }
 
 export type TestEnvironmentConstructor = Function & {
-    acquire(...args: any[]): Promise<TestEnvironment>;
+    acquire(domain: EnvironmentDecorator, ...args: any[]): Promise<TestEnvironment>;
 }

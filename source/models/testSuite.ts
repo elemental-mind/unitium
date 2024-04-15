@@ -1,12 +1,12 @@
-import { TestEnvironment } from "../environments/testEnvironment.js";
 import { capitalCase, camelToNormal } from "../formatting.js";
 import { TestFunction } from "./testFunction.js";
-import { TestModule } from "./testModule.js";
 import { TestHook, TestHookType } from "./testHook.js";
 import { Observable } from "../eventPropagation.js";
-import { ITestSuiteConstructor } from "../interfaces.js";
 import { EnvironmentDecorator, ITestSetupConstructor, SetupManager, TestSetup } from "../setups/testSetup.js";
 import { DefaultSetup } from "../setups/preDefined/defaultSetup.js";
+import type { TestModule } from "./testModule.js";
+import type { TestEnvironment } from "../environments/testEnvironment.js";
+import type { ITestSuiteConstructor } from "../interfaces.js";
 
 export class TestSuite extends Observable
 {
@@ -27,9 +27,14 @@ export class TestSuite extends Observable
 
         this.setupType = this.detectTestSetup();
 
-        for (const [memberName, member] of Object.entries(this.testClass.prototype))
+        for (const memberName of Object.getOwnPropertyNames(this.testClass.prototype))
+        {
+            if(memberName === "constructor") continue;
+
+            const member = this.testClass.prototype[memberName];
             if (typeof member === "function")
                 this.parsePublicMemberFunction(member);
+        }
     }
 
     get hasSequentialDecorator()
@@ -109,7 +114,7 @@ export class TestSuite extends Observable
         {
             const testRunPromises = [];
 
-            const {instances, environment} = await this.initializeParallelInstances(setup);
+            const { instances, environment } = await this.initializeParallelInstances(setup);
 
             for (const test of this.tests)
             {
@@ -131,7 +136,7 @@ export class TestSuite extends Observable
         const suiteInstances = new Map<EnvironmentDecorator, Promise<TestSuiteInstance>>();
 
         for (const [environmentType, environment] of loadedEnvironments)
-            suiteInstances.set(environmentType, environment.instantiateSuite(this));
+            suiteInstances.set(environmentType, TestSuiteInstance.create(this, environment));
 
         return suiteInstances;
     }
@@ -148,7 +153,7 @@ export class TestSuite extends Observable
         await environment.runStatic(this, "onSetup");
 
         for (const test of this.tests)
-            instances.set(test, environment.instantiateSuite(this));
+            instances.set(test, TestSuiteInstance.create(this, environment));
 
         return { instances, environment };
     }
@@ -180,7 +185,7 @@ export class TestSuite extends Observable
     }
 }
 
-class TestSuiteInstance
+export class TestSuiteInstance
 {
     static async create(testSuite: TestSuite, testEnvironment: TestEnvironment)
     {

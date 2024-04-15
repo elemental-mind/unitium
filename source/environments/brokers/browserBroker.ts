@@ -1,5 +1,5 @@
 import { Browser, BrowserType, chromium } from "playwright";
-import { ExternalEnvironmentOptions } from "../coordination/coordinationServer.js";
+import type { ExternalEnvironmentOptions } from "../../orchestration/frameworkServer.js";
 
 
 export type BrowserOptions =

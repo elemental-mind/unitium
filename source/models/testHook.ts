@@ -1,5 +1,5 @@
-import { TestSuite } from "./testSuite.js";
-import { EnvironmentDecorator } from "../setups/testSetup.js";
+import type { TestSuite } from "./testSuite.js";
+import type { EnvironmentDecorator } from "../setups/testSetup.js";
 
 export type TestHookType = "Setup" | "Teardown" | "Before" | "After";
 

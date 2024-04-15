@@ -1,5 +1,5 @@
 import type { ExProcessTestEnvironment } from "../exProcessEnvironments/exProcessTestEnvironment.js";
-import { frameworkServer } from "./coordinationServer.js";
+import { frameworkServer } from "../../orchestration/frameworkServer.js";
 
 export enum SpecialRemoteObjectIDs
 {

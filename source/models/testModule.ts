@@ -1,18 +1,18 @@
+import path from "path";
 import { Observable } from "../eventPropagation.js";
 import { TestSuite } from "./testSuite.js";
-import { readFile, unlink, writeFile } from "fs/promises";
-import { TestHook } from "./testHook.js";
-import { TestFunction } from "./testFunction.js";
-import { FileSystemHost, Project, SourceFile, SyntaxKind } from "ts-morph";
-import { ITestSuiteConstructor } from "../interfaces.js";
-import { EnvironmentDecorator } from "../setups/testSetup.js";
-import path from "path";
+import { FileSystemHost, ModuleKind, Project, ScriptTarget, SourceFile, SyntaxKind } from "ts-morph";
+import type { TestHook } from "./testHook.js";
+import type { TestFunction } from "./testFunction.js";
+import type { ITestSuiteConstructor } from "../interfaces.js";
+import type { EnvironmentDecorator } from "../setups/testSetup.js";
+import { File } from "./file.js";
 
 export class TestModule extends Observable
 {
     public testSuites: TestSuite[] = [];
-    public environmentModules = new Map<EnvironmentDecorator, string>();
-    public temporaryFiles: string[] = [];
+    public environmentModules = new Map<EnvironmentDecorator, File>();
+    public temporaryFiles: File[] = [];
 
     get tests()
     {
@@ -20,15 +20,15 @@ export class TestModule extends Observable
     }
 
     private constructor(
-        public filePath: string
+        public file: File
     )
     {
         super();
     }
 
-    static async fromFile(filePath: string)
+    static async fromFile(file: File)
     {
-        const testModule = new TestModule(filePath);
+        const testModule = new TestModule(file);
         await testModule.analyzeFile();
         return testModule;
     }
@@ -48,39 +48,39 @@ export class TestModule extends Observable
 
     private async analyzeFile()
     {
-        const skeletizer = new Skeletizer(this.filePath, await readFile(this.filePath, { encoding: "utf8" }));
+        const skeletizer = new Skeletizer(this.file, await this.file.getContents());
 
         let module;
 
         if (skeletizer.needsSkeletizing())
         {
-            const skeletonModuleName = this.filePath.split(".").splice(-1, 0, "skeleton").join(".");
-            await writeFile(skeletonModuleName, await skeletizer.getStrippedModule());
-            this.temporaryFiles.push(skeletonModuleName);
+            const skeletizedFile = new File(this.file.filePath.split(".").toSpliced(-1, 0, "skeleton").join("."));
+            await skeletizedFile.setContents(await skeletizer.getStrippedModule());
+            this.temporaryFiles.push(skeletizedFile);
 
-            module = await import(skeletonModuleName);
+            module = await skeletizedFile.import();
         }
         else
         {
-            module = await import(this.filePath);
+            module = await this.file.import();
         }
 
         for (const exportedClass of Object.values(module))
             this.testSuites.push(new TestSuite(this, exportedClass as ITestSuiteConstructor));
     }
 
-    async createEnvironmentModuleAndReturnPath(environmentDecorator: EnvironmentDecorator): Promise<string>
+    async createEnvironmentModuleFile(environmentDecorator: EnvironmentDecorator): Promise<File>
     {
         if (this.environmentModules.has(environmentDecorator))
             return this.environmentModules.get(environmentDecorator)!;
 
         //We insert the environment type before the .ts extension => example.test.ts -> example.test.environment.ts
-        const environmentModulePath = this.filePath.split(".").splice(-1, 0, environmentDecorator.name).join(".");
+        const environmentModule = new File(this.file.filePath.split(".").toSpliced(-1, 0, `${environmentDecorator.environmentName}-${environmentDecorator.environmentID}`).join("."));
 
-        await writeFile(environmentModulePath, await this.getEnvironmentModuleString(environmentDecorator));
-        this.temporaryFiles.push(environmentModulePath);
-        this.environmentModules.set(environmentDecorator, environmentModulePath);
-        return environmentModulePath;
+        await environmentModule.setContents( await this.getEnvironmentModuleString(environmentDecorator));
+        this.temporaryFiles.push(environmentModule);
+        this.environmentModules.set(environmentDecorator, environmentModule);
+        return environmentModule;
     }
 
     private async getEnvironmentModuleString(environmentDecorator: EnvironmentDecorator)
@@ -88,19 +88,17 @@ export class TestModule extends Observable
         const testFunctionsForEnvironment = this.tests.filter(test => test.executionEnvironment === environmentDecorator);
         const testHooksForEnvironment = this.testSuites.flatMap(suite => suite.hooks).filter(hook => hook.environment === environmentDecorator);
 
-        const source = await readFile(this.filePath, { encoding: "utf-8" });
+        const source = await this.file.getContents();
 
-        const compiler = new TreeShaker(this.filePath, source, [...testFunctionsForEnvironment, ...testHooksForEnvironment]);
+        const compiler = new TreeShaker(this.file, source, [...testFunctionsForEnvironment, ...testHooksForEnvironment]);
 
         return await compiler.getCompiledModule();
     }
 
     async cleanup()
     {
-        for (const file of this.temporaryFiles)
-        {
-            await unlink(file);
-        }
+        const fileDeletionPromises = this.temporaryFiles.map(file => file.delete());
+        await Promise.all(fileDeletionPromises);
     }
 }
 
@@ -111,14 +109,18 @@ class TreeShaker
     sourceFile: SourceFile;
 
     constructor(
-        public fileName: string,
+        public file: File,
         public source: string,
         public targetFunctions: (TestHook | TestFunction)[]
     )
     {
-        this.project = new Project({ useInMemoryFileSystem: true });
+        this.project = new Project({ useInMemoryFileSystem: true, compilerOptions: {
+            target: ScriptTarget.ES2020,
+            module: ModuleKind.ES2020
+        }});
         this.fileSystem = this.project.getFileSystem();
         this.sourceFile = this.project.createSourceFile("module.ts", source);
+        this.sourceFile.saveSync();
     }
 
     async getCompiledModule()
@@ -155,8 +157,8 @@ class TreeShaker
         }
 
         await this.makeImportsAbsolute();
-        await this.sourceFile.emit();
-        return await this.fileSystem.readFile("module.js");
+
+        return await this.fileSystem.readFile("module.ts");
     }
 
     removeIrrelevantSuites(relevantSuiteNames: string[])
@@ -181,10 +183,10 @@ class TreeShaker
         for (const importDeclaration of this.sourceFile.getImportDeclarations())
         {
             const moduleSpecifier = importDeclaration.getModuleSpecifier();
-            if (moduleSpecifier && !moduleSpecifier.getText().startsWith("."))
+            if (moduleSpecifier && (moduleSpecifier.getLiteralText().endsWith(".ts") || moduleSpecifier.getLiteralText().endsWith(".js")))
             {
-                const absoluteImportPath = path.join(path.dirname(this.fileName), moduleSpecifier.getLiteralText());
-                importDeclaration.setModuleSpecifier(`"${absoluteImportPath}"`);
+                const absoluteImportPath = path.join(path.dirname(this.file.filePath), moduleSpecifier.getLiteralText()).replaceAll("\\", "/");
+                importDeclaration.setModuleSpecifier(`${absoluteImportPath}`);
             }
         }
 
@@ -197,10 +199,10 @@ class Skeletizer
     private project: Project;
     private sourceFile: SourceFile;
 
-    constructor(private filePath: string, private source: string)
+    constructor(private file: File, private source: string)
     {
         this.project = new Project({ useInMemoryFileSystem: true });
-        this.sourceFile = this.project.createSourceFile(filePath, source);
+        this.sourceFile = this.project.createSourceFile(file.filePath, source);
     }
 
     needsSkeletizing()
@@ -228,7 +230,8 @@ class Skeletizer
             {
                 const importFileName = imp.getModuleSpecifier().getText()
                 const isSetupImport = importFileName.endsWith('.test-setup.ts');
-                const isDecoratorFile = path.join(path.dirname(this.filePath), importFileName) === path.join(path.dirname(this.filePath), "../decorators.ts");
+                //We see whether the absolute import path references the frameworks decorators.ts file
+                const isDecoratorFile = path.join(path.dirname(this.file.filePath), importFileName) === path.join(path.dirname(this.file.filePath), "../decorators.ts");
                 return !(isSetupImport || isDecoratorFile);
             })
             .forEach(imp => imp.remove());

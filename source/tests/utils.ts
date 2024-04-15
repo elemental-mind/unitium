@@ -1,10 +1,10 @@
-import { NodeAppSpecification, TestRunner } from "../api/js/node/api.js";
+import { TestRunner } from "../api/js/node/api.js";
 import { SoftwareSpecification } from "../models/specification.js";
 import path from "path"
 
 export async function evaluateNodeSpecIn(fileOrPath: string): Promise<SoftwareSpecification>
 {
-    const spec = await NodeAppSpecification.load([path.resolve(fileOrPath)]);
+    const spec = await SoftwareSpecification.fromFileReferences([path.resolve(fileOrPath)]);
     const runner = await new TestRunner(spec).run();
 
     return spec;

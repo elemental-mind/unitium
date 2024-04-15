@@ -1,25 +1,20 @@
 import { TestEnvironment } from "../../environments/testEnvironment.js";
+import type { TestSuite } from "../../models/testSuite.js";
 import { TestSetup, SetupManager, EnvironmentDecorator } from "../testSetup.js";
-import { FullStackSetupOptions } from "./fullStackSetup.js";
 
 export class ServerSetup extends TestSetup
 {
     //Class-Decorators
     static Config = SetupManager.generateConfigDecorator();
-
+    
     //Method-Decorators
-    static Browser = SetupManager.generateMethodDecorator();
-    static User = SetupManager.generateMethodDecorator();
-    static Server = SetupManager.generateMethodDecorator();
-
-    public environmentMap?: Map<EnvironmentDecorator | null, TestEnvironment>;
-
+    static Server = SetupManager.generateEnvironmentDecorator("server");
+    static Default = this.Server;
+    
     //Hooks
-    async loadEnvironments(clss: any)
+    loadEnvironments(suite: TestSuite): Promise<Map<EnvironmentDecorator, TestEnvironment>>
     {
-        const configuration = SetupManager.getConfigurationFor<FullStackSetupOptions>(clss);
-
-        return this.environmentMap!;
+        throw new Error("Method not implemented.");
     }
 
     async disposeEnvironments() {}

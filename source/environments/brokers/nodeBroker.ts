@@ -1,7 +1,6 @@
 import { ChildProcess, spawn } from "child_process";
 import path from "path";
-import { TestRunner } from "../../api/js/node/api.js";
-import { ExternalEnvironmentOptions, frameworkServer } from "../coordination/coordinationServer.js";
+import { ExternalEnvironmentOptions, frameworkServer } from "../../orchestration/frameworkServer.js";
 
 export type NodeOptions =
     ExternalEnvironmentOptions &

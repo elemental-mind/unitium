@@ -1,4 +1,4 @@
-import { TestSuite } from "../../models/testSuite.js";
+import type { TestSuite } from "../../models/testSuite.js";
 import { EnvironmentType, TestEnvironment } from "../testEnvironment.js";
 
 export abstract class InProcessTestEnvironment extends TestEnvironment
@@ -7,7 +7,7 @@ export abstract class InProcessTestEnvironment extends TestEnvironment
 
     async runStatic(suite: TestSuite, fct: string): Promise<void>
     {
-        const module = await import(suite.testModule.filePath);
-        await module[suite.className][fct]();
+        const module = await suite.testModule.file.import();
+        await module[suite.className][fct]?.();
     }
 }

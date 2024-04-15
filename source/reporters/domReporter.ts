@@ -25,7 +25,7 @@ export class DOMReporter extends EventBasedReporter
     {
         const moduleOutput = document.createElement("article");
         moduleOutput.className = "unitium-module";
-        moduleOutput.innerHTML = `<code>${testModule.filePath}</code>`;
+        moduleOutput.innerHTML = `<code>${testModule.file}</code>`;
         document.getElementById("unitium-output")?.appendChild(moduleOutput);
         this.moduleContainers.set(testModule, moduleOutput);
 

@@ -1,6 +1,6 @@
-import type { TestSuite } from "../../../models/testSuite.js";
-import { environment } from "../../../unitium.js";
-import { TestEnvironment } from "../../testEnvironment.js";
+import { TestSuite, TestSuiteInstance } from "../../../models/testSuite.js";
+import { DefaultSetup } from "../../../setups/preDefined/defaultSetup.js";
+import type { TestEnvironment } from "../../testEnvironment.js";
 import { InProcessTestEnvironment } from "../inProcessTestEnvironment.js";
 
 export class NodeInProcessEnvironment extends InProcessTestEnvironment
@@ -10,12 +10,14 @@ export class NodeInProcessEnvironment extends InProcessTestEnvironment
         return environment;
     }
 
-    async instantiateSuite(suite: TestSuite): Promise<any>
+    async instantiateSuite(suite: TestSuite): Promise<TestSuiteInstance>
     {
-        const modulePath = await await suite.testModule.createEnvironmentModuleAndReturnPath(NodeInProcessEnvironment);
-        const module = await import(modulePath);
+        const moduleFile = await suite.testModule.createEnvironmentModuleFile(DefaultSetup.Default);
+        const module = await moduleFile.import();
         return new module[suite.className]();
     }
 
     async release() {};
 }
+
+const environment = new NodeInProcessEnvironment(DefaultSetup.Default);

@@ -1,7 +1,14 @@
 import { TestEnvironment } from "../environments/testEnvironment.js";
 import { ArgsArray, ITestSuiteConstructor } from "../interfaces.js";
+import { TestSuite } from "../models/testSuite.js";
 
-export type EnvironmentDecorator = ((clss: any, methodName: string) => void) & { isEnvironmentDecorator: boolean; };
+export type EnvironmentDecorator =
+    ((clss: any, methodName: string) => void)
+    & {
+        isEnvironmentDecorator: boolean;
+        environmentID: number;
+        environmentName: string;
+    };
 export type ConfigurationDecorator<T extends any[] = any[]> = ((...args: ArgsArray<T>) => (clss: ITestSuiteConstructor) => void) & { isConfigurationDecorator: boolean; };
 
 export interface ITestSetupConstructor<T extends any[] = any[]>
@@ -13,12 +20,13 @@ export interface ITestSetupConstructor<T extends any[] = any[]>
 
 export abstract class TestSetup
 {
-    abstract loadEnvironments(clss: any): Promise<Map<EnvironmentDecorator, TestEnvironment>>;
+    abstract loadEnvironments(suite: TestSuite): Promise<Map<EnvironmentDecorator, TestEnvironment>>;
     abstract disposeEnvironments(): Promise<void>;
 }
 
 class TestSetupManager
 {
+    public environmentIDProvider = 0;
     public setups = new Map<ITestSetupConstructor<any>, { multiEnvironment: boolean; }>();
     public decoratorToSetupMap = new Map<EnvironmentDecorator | ConfigurationDecorator, ITestSetupConstructor>();
 
@@ -39,7 +47,7 @@ class TestSetupManager
         return decorator;
     }
 
-    public generateMethodDecorator(): EnvironmentDecorator
+    public generateEnvironmentDecorator(environmentName: string): EnvironmentDecorator
     {
         const decorator = (clss: ITestSuiteConstructor, methodName: string) =>
         {
@@ -47,6 +55,8 @@ class TestSetupManager
             clss.__meta!.setup!.functions![methodName] = decorator;
         };
         decorator.isEnvironmentDecorator = true;
+        decorator.environmentID = this.environmentIDProvider++;
+        decorator.environmentName = environmentName;
         return decorator;
     }
 

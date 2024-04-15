@@ -3,8 +3,8 @@ import { createServer, Server } from 'http';
 import { readFile } from 'fs/promises';
 import { transform } from '@swc/core';
 import { Awaitable } from 'deferium';
-import { RPCRequest, RPCResponse } from './rpcInterfaces.js';
-import type { ExProcessTestEnvironment } from '../exProcessEnvironments/exProcessTestEnvironment.js';
+import type { RPCRequest, RPCResponse } from '../environments/rpc/rpcInterfaces.js';
+import type { ExProcessTestEnvironment } from '../environments/exProcessEnvironments/exProcessTestEnvironment.js';
 
 export interface ExternalEnvironmentOptions
 {
@@ -24,7 +24,6 @@ class FrameworkServer
     {
         this.fileServer = this.initializeFileServer();
         this.wsServer = this.initializeWebSocketServer();
-        this.findPortAndStartServer();
     }
 
     get httpURL()
@@ -37,10 +36,10 @@ class FrameworkServer
         return "ws://" + this.baseURL;
     }
 
-    findPortAndStartServer()
+    start(portRange = [8000, 8100])
     {
         let port;
-        for (port = 8000; port < 8100; port++)
+        for (port = portRange[0]; port < portRange[1]; port++)
         {
             try 
             {
@@ -55,6 +54,11 @@ class FrameworkServer
         }
 
         throw new Error("Could not initialize test coordination server. All ports in use.");
+    }
+
+    stop()
+    {
+        this.fileServer.close();
     }
 
     private initializeFileServer()

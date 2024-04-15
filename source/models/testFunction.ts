@@ -1,9 +1,9 @@
 import { Observable } from "../eventPropagation.js";
 import { titleCase, camelToNormal } from "../formatting.js";
-import { EnvironmentDecorator } from "../setups/testSetup.js";
 import { InternalError } from "../unitium.js";
 import { TestError } from "./testError.js";
-import { TestSuite } from "./testSuite.js";
+import type { EnvironmentDecorator } from "../setups/testSetup.js";
+import type { TestSuite } from "./testSuite.js";
 
 export class TestFunction extends Observable
 {
@@ -22,7 +22,7 @@ export class TestFunction extends Observable
         super();
 
         this.functionName = testFunction.name;
-        this.name = titleCase(camelToNormal(this.functionName))
+        this.name = titleCase(camelToNormal(this.functionName));
         this.executionEnvironment = this.testSuite.testClass.__meta?.setup?.functions?.[this.functionName] ?? this.testSuite.setupType.Default;
         this.isDebugTarget = this.testSuite.testClass.__meta?.debugTestName === this.functionName;
     }
@@ -38,14 +38,14 @@ export class TestFunction extends Observable
         }
         catch (e: Error | any)
         {
-            if(e instanceof InternalError)
+            if (e instanceof InternalError)
                 throw e;
             else
                 this.error = new TestError(e);
         }
 
         this.runCompleted.resolve();
-        
+
         return wasSuccessful;
     }
 }

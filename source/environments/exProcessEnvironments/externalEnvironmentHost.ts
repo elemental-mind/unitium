@@ -1,5 +1,5 @@
-import { firstFreeID, SpecialRemoteObjectIDs } from "../coordination/remoteObject.js";
-import { RPCRequest } from "../coordination/rpcInterfaces.js";
+import { firstFreeID, SpecialRemoteObjectIDs } from "../rpc/remoteObject.js";
+import type { RPCRequest } from "../rpc/rpcInterfaces.js";
 
 export class ExternalEnvironmentHost
 {

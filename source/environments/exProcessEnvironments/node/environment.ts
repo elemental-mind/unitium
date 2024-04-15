@@ -1,24 +1,25 @@
 import type { ChildProcess } from "child_process";
 import { NodeBroker, NodeOptions } from "../../brokers/nodeBroker.js";
 import { ExProcessTestEnvironment } from "../exProcessTestEnvironment.js";
-import type { TestSuite } from "../../../models/testSuite.js";
+import type { EnvironmentDecorator } from "../../../setups/testSetup.js";
 
 export class NodeExternalProcessEnvironment extends ExProcessTestEnvironment
 {
     public process!: ChildProcess;
 
-    static async acquire(options: NodeOptions)
+    static async acquire(domain: EnvironmentDecorator, options: NodeOptions)
     {
-        const environment = new NodeExternalProcessEnvironment(options);
+        const environment = new NodeExternalProcessEnvironment(domain, options);
         await environment.initialized;
         return environment;
     }
 
     private constructor(
+        domain: EnvironmentDecorator,
         public options: NodeOptions
     )
     {
-        super();
+        super(domain);
         this.initializeEnvironment();
     }
 
