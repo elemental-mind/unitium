@@ -42,7 +42,7 @@ async function testProject()
 async function compileProject()
 {
     try {
-        execSync('tsc', { stdio: 'inherit' });
+        execSync('npm exec tsc', { stdio: 'inherit' });
     } catch (error) {
         await fs.rm("tmp", { recursive: true });
         console.log("Release aborted due to compilation error.");
