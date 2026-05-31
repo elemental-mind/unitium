@@ -15,9 +15,21 @@
   "exports": {
     ".": {
       "types": "./distribution/index.d.ts",
+      "bun": "./distribution/index.js",
+      "deno": "./distribution/index.js",
       "import": "./distribution/index.js"
     },
     "./browser/*": "./distribution/browser/*",
+    "./bun": {
+      "types": "./distribution/bun/index.d.ts",
+      "bun": "./distribution/bun/index.js",
+      "import": "./distribution/bun/index.js"
+    },
+    "./deno": {
+      "types": "./distribution/deno/index.d.ts",
+      "deno": "./distribution/deno/index.js",
+      "import": "./distribution/deno/index.js"
+    },
     "./node-api": "./distribution/node/api.js",
     "./browser-api": "./distribution/browser/api.js"
   },
@@ -28,6 +40,8 @@
   },
   "bin": {
     "unitium": "/distribution/node/index.js",
+    "unitium-bun": "/distribution/bun/index.js",
+    "unitium-deno": "/distribution/deno/index.js",
     "unitium-tsx": "/distribution/node/exec-tsx.js",
     "unitium-ts-node": "/distribution/node/exec-ts-node.js"
   },
@@ -35,7 +49,10 @@
     "dry-update": "node npm-release.ts",
     "patch": "node npm-release.ts && npm version patch && git push && npm publish",
     "release": "node npm-release.ts && npm version minor && git push && npm publish",
-    "test": "node ./source/node/index.ts ./source",
+    "test": "npm run test:node",
+    "test:node": "node ./source/node/index.ts ./source",
+    "test:bun": "bun ./source/bun/index.ts ./source",
+    "test:deno": "deno run --allow-read ./source/deno/index.ts ./source",
     "serve": "vite"
   },
   "devDependencies": {
