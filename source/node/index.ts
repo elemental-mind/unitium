@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import FastGlob from 'fast-glob';
 import { SoftwareSpecification, TestRunner } from '../unitium.ts';
+import type { Dirent } from "fs";
+import * as fs from "fs/promises";
 import path from "path";
 import type { BaseReporter } from '../reporters/base.ts';
 import { JSONReporter } from '../reporters/jsonReporter.ts';
@@ -27,21 +28,16 @@ export class NodeAppSpecification extends SoftwareSpecification
 
     private static async getModuleURLs(fileSystemReferences: string[])
     {
-        let folderGlobs: string[] = ["./**/*.{test,spec}.{js,ts}"];
+        let folderReferences: string[] = ["."];
         let fileReferences: string[] = [];
 
         if (fileSystemReferences.length)
         {
             fileReferences = fileSystemReferences.filter(ref => ref.endsWith(".js") || ref.endsWith(".ts")).map(file => this.normalizeFilePath(file));
-            folderGlobs = fileSystemReferences.filter(ref => !(ref.endsWith(".js") || ref.endsWith(".ts"))).map(folder => this.globifyFilePath(folder));
+            folderReferences = fileSystemReferences.filter(ref => !(ref.endsWith(".js") || ref.endsWith(".ts")));
         }
 
-        const modulesInSubfolders = await FastGlob(folderGlobs,
-            {
-                onlyFiles: true,
-                absolute: true,
-                ignore: ['**/node_modules/**']
-            });
+        const modulesInSubfolders = (await Promise.all(folderReferences.map(folder => this.findTestModulesInFolder(folder)))).flat();
 
         const uniqueModules = [...new Set([...modulesInSubfolders, ...fileReferences])];
         const moduleFileURLs = uniqueModules.map(module => `file://${module}`);
@@ -54,9 +50,26 @@ export class NodeAppSpecification extends SoftwareSpecification
         return path.resolve(reference).replaceAll("\\", "/");
     }
 
-    private static globifyFilePath(reference: string)
+    // Native equivalent of globbing ./**/*.{test,spec}.{js,ts}.
+    private static async findTestModulesInFolder(reference: string): Promise<string[]>
     {
-        return reference.replaceAll("\\", "/") + (reference.endsWith("/") ? "" : "/") + "**/*.{test,spec}.{js,ts}";
+        const folderPath = path.resolve(reference);
+
+        const entries = await fs.readdir(folderPath, { withFileTypes: true, recursive: true });
+
+        return entries
+            .filter(entry => entry.isFile() && !this.isInNodeModules(entry) && this.hasTestModuleEnding(entry.name))
+            .map(entry => this.normalizeFilePath(path.join(entry.parentPath, entry.name)));
+    }
+
+    private static hasTestModuleEnding(fileName: string)
+    {
+        return /\.(test|spec)\.(js|ts)$/.test(fileName);
+    }
+
+    private static isInNodeModules(entry: Dirent)
+    {
+        return entry.parentPath.split(path.sep).includes("node_modules");
     }
 }
 
