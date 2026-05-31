@@ -1,7 +1,7 @@
-export { NodeAppSpecification } from "./index.js"
-export { URLSetSpecification } from "../unitium.js"
+export { NodeAppSpecification } from "./index.ts"
+export { URLSetSpecification } from "../unitium.ts"
 
-export { TestRunner } from "../unitium.js"
+export { TestRunner } from "../unitium.ts"
 
-export { ConsoleReporter } from "../reporters/consoleReporter.js"
-export { JSONReporter } from "../reporters/jsonReporter.js"
+export { ConsoleReporter } from "../reporters/consoleReporter.ts"
+export { JSONReporter } from "../reporters/jsonReporter.ts"

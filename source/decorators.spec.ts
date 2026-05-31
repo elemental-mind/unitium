@@ -1,4 +1,4 @@
-import { evaluateNodeSpecIn } from "./tests/utils.js";
+import { evaluateNodeSpecIn } from "./tests/utils.ts";
 import assert from "assert";
 
 export class SequentialDecoratorTests

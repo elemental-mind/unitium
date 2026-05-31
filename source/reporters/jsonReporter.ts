@@ -1,4 +1,4 @@
-import { BaseReporter } from "./base.js";
+import { BaseReporter } from "./base.ts";
 
 export class JSONReporter extends BaseReporter {
     onTestRunEnd() {

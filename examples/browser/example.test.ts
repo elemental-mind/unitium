@@ -1,7 +1,8 @@
 import * as assert from "uvu/assert";
 // normally you just include `import { xxx } from "unitium"`
-import { ISequentialTestSuiteMemberHooks, Sequential } from "../../source/index.js"
-import { Test } from "../../source/unitium.js";
+import { Sequential } from "../../source/index.ts"
+import type { ISequentialTestSuiteMemberHooks } from "../../source/index.ts"
+import type { Test } from "../../source/unitium.ts";
 
 export class BasicExampleTests
 {

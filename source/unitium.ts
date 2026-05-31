@@ -1,19 +1,21 @@
 import { Awaitable } from "deferium";
-import { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.js";
-import { BaseReporter } from "./reporters/base.js";
+import type { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.ts";
+import type { BaseReporter } from "./reporters/base.ts";
 
 export class TestRunner extends Awaitable
 {
     public specification: SoftwareSpecification;
+    public reporters?: BaseReporter[];
 
     testingCompleted = new Awaitable();
     constructor(
         loadedSpecification: SoftwareSpecification,
-        public reporters?: BaseReporter[]
+        reporters?: BaseReporter[]
     )
     {
         super();
         this.specification = loadedSpecification;
+        this.reporters = reporters;
     }
 
     async run()
@@ -110,6 +112,7 @@ export class URLSetSpecification extends SoftwareSpecification
 
 export class TestModule extends Observable
 {
+    public path: string;
     testSuites: TestSuite[] = [];
 
     get tests()
@@ -118,11 +121,12 @@ export class TestModule extends Observable
     }
 
     constructor(
-        public path: string,
+        path: string,
         module: any
     )
     {
         super();
+        this.path = path;
         for (const key in module)
             if (TestSuite.isValid(module[key]))
                 this.testSuites.push(new TestSuite(this, module[key]));
@@ -166,6 +170,8 @@ type ITestSuiteMetadata = {
 
 export class TestSuite extends Observable
 {
+    public testModule: TestModule;
+    public testClassConstructor: TestSuiteConstructor;
     public className: string;
     public name: string;
     public tests: Test[] = [];
@@ -174,11 +180,13 @@ export class TestSuite extends Observable
     public containsTestHooks = false;
 
     constructor(
-        public testModule: TestModule,
-        public testClassConstructor: TestSuiteConstructor
+        testModule: TestModule,
+        testClassConstructor: TestSuiteConstructor
     )
     {
         super();
+        this.testModule = testModule;
+        this.testClassConstructor = testClassConstructor;
         this.className = testClassConstructor.name;
         this.name = capitalCase(camelToNormal(this.className));
 
@@ -254,15 +262,19 @@ export class TestSuite extends Observable
 
 export class Test extends Observable
 {
+    public testSuite: TestSuite;
+    public testFunctionName: string;
     public error?: TestError;
     public description?: string;
 
     constructor(
-        public testSuite: TestSuite,
-        public testFunctionName: string
+        testSuite: TestSuite,
+        testFunctionName: string
     )
     {
         super();
+        this.testSuite = testSuite;
+        this.testFunctionName = testFunctionName;
     }
 
     get name()
@@ -298,6 +310,7 @@ export class Test extends Observable
 
 export class TestError extends Serializable
 {
+    private error: Error;
     public actual: any;
     public expected: any;
     public name!: string;
@@ -309,9 +322,10 @@ export class TestError extends Serializable
         column: number;
     };
 
-    constructor(private error: Error)
+    constructor(error: Error)
     {
         super();
+        this.error = error;
         Object.assign(this, error);
         this.name = error.name;
         const errorPosition = error.stack!.split("\n    at")[1].trim();

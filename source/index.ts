@@ -1,2 +1,2 @@
-export * from "./decorators.js"
-export * from "./hooks.js"
+export * from "./decorators.ts"
+export * from "./hooks.ts"

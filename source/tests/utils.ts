@@ -1,5 +1,5 @@
-import { NodeAppSpecification } from "../node/api.js";
-import { SoftwareSpecification, TestRunner } from "../unitium.js";
+import { NodeAppSpecification } from "../node/api.ts";
+import { SoftwareSpecification, TestRunner } from "../unitium.ts";
 import path from "path"
 
 export async function evaluateNodeSpecIn(fileOrPath: string): Promise<SoftwareSpecification>

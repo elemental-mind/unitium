@@ -23,20 +23,24 @@
   },
   "author": "Magnus Meseck",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
   "bin": {
     "unitium": "/distribution/node/index.js",
     "unitium-tsx": "/distribution/node/exec-tsx.js",
     "unitium-ts-node": "/distribution/node/exec-ts-node.js"
   },
   "scripts": {
-    "dry-update": "tsx npm-release.ts",
-    "patch": "tsx npm-release.ts && npm version patch && git push && npm publish",
-    "release": "tsx npm-release.ts && npm version minor && git push && npm publish",
-    "test": "tsx ./source/node/index.ts ./source",
+    "dry-update": "node npm-release.ts",
+    "patch": "node npm-release.ts && npm version patch && git push && npm publish",
+    "release": "node npm-release.ts && npm version minor && git push && npm publish",
+    "test": "node ./source/node/index.ts ./source",
     "serve": "vite"
   },
   "devDependencies": {
-    "@types/node": "^17.0.6",
+    "@types/node": "^22.18.0",
+    "typescript": "^5.8.0",
     "uvu": "^0.5.6"
   },
   "dependencies": {

@@ -1,26 +1,27 @@
-import { Debug, Sequential } from "../../source/decorators.js";
+import { Debug, Sequential } from "../../source/decorators.ts";
 
-@Sequential
-export class SequentialDebugSuite
+class SequentialDebugSuiteFixture
 {
     static executionOrder: number[] = [];
     
     async first()
     {
         await new Promise(resolve => setTimeout(resolve, 300));
-        SequentialDebugSuite.executionOrder.push(1);
+        SequentialDebugSuiteFixture.executionOrder.push(1);
     }
 
-    @Debug
     async second()
     {
         await new Promise(resolve => setTimeout(resolve, 200));
-        SequentialDebugSuite.executionOrder.push(2);
+        SequentialDebugSuiteFixture.executionOrder.push(2);
     }
 
     async third()
     {
         await new Promise(resolve => setTimeout(resolve, 100));
-        SequentialDebugSuite.executionOrder.push(3);
+        SequentialDebugSuiteFixture.executionOrder.push(3);
     }
 }
+
+Debug(SequentialDebugSuiteFixture.prototype, "second");
+export const SequentialDebugSuite = Sequential(SequentialDebugSuiteFixture);

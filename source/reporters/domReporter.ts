@@ -1,5 +1,5 @@
-import { EventBasedReporter } from "./base.js";
-import { TestModule, TestSuite, Test } from "../unitium.js";
+import { EventBasedReporter } from "./base.ts";
+import { TestModule, TestSuite, Test } from "../unitium.ts";
 
 export class DOMReporter extends EventBasedReporter
 {

@@ -1,5 +1,5 @@
 import assert from "assert";
-import { evaluateNodeSpecIn } from "./tests/utils.js";
+import { evaluateNodeSpecIn } from "./tests/utils.ts";
 
 
 export class HooksExecutionModelTests

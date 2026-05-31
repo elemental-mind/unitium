@@ -1,4 +1,4 @@
-import { Debug } from "../../source/decorators.js";
+import { Debug } from "../../source/decorators.ts";
 
 export class ParallelDebugSuite
 {
@@ -10,7 +10,6 @@ export class ParallelDebugSuite
         ParallelDebugSuite.executionOrder.push(1);
     }
 
-    @Debug
     async second()
     {
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -23,3 +22,5 @@ export class ParallelDebugSuite
         ParallelDebugSuite.executionOrder.push(3);
     }
 }
+
+Debug(ParallelDebugSuite.prototype, "second");

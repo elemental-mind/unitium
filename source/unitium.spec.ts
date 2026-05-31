@@ -1,5 +1,5 @@
 import assert from "assert";
-import { arraysContainSameElements, evaluateNodeSpecIn } from "./tests/utils.js";
+import { arraysContainSameElements, evaluateNodeSpecIn } from "./tests/utils.ts";
 
 export class ModuleParsingTests
 {
@@ -45,7 +45,7 @@ export class AssertionDetectionTests
     
     async shouldNotRegisterErrorOnPassingTest()
     {
-        const results = await evaluateNodeSpecIn("test-scenarios/general/assertion/passing.test.js");
+        const results = await evaluateNodeSpecIn("test-scenarios/general/assertion/passing.test.ts");
 
         assert(results.tests[0].error === undefined);
     }

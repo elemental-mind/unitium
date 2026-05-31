@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import FastGlob from 'fast-glob';
-import { SoftwareSpecification, TestRunner } from '../unitium.js';
+import { SoftwareSpecification, TestRunner } from '../unitium.ts';
 import path from "path";
-import { BaseReporter } from '../reporters/base.js';
-import { JSONReporter } from '../reporters/jsonReporter.js';
-import { ConsoleReporter } from '../reporters/consoleReporter.js';
+import type { BaseReporter } from '../reporters/base.ts';
+import { JSONReporter } from '../reporters/jsonReporter.ts';
+import { ConsoleReporter } from '../reporters/consoleReporter.ts';
 
 type NodeRunnerOptions = typeof defaultNodeOptions;
 const defaultNodeOptions = {

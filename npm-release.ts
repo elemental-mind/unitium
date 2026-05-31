@@ -31,7 +31,7 @@ async function deleteOldDistFolder()
 async function testProject()
 {
     try {
-        execSync('tsx ./source/node/index.ts ./source', { stdio: 'inherit' });
+        execSync('node ./source/node/index.ts ./source', { stdio: 'inherit' });
     } catch (error) {
         console.log("Release aborted due to test error.");
         process.exit(1);

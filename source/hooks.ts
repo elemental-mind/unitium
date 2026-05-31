@@ -1,4 +1,4 @@
-import { Test } from "./unitium.js";
+import type { Test } from "./unitium.ts";
 
 export interface ISequentialTestSuiteMemberHooks
 {

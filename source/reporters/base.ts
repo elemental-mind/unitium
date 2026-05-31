@@ -1,8 +1,14 @@
-import { SoftwareSpecification, TestModule, TestSuite, Test, Observable } from "../unitium.js";
+import { Observable } from "../unitium.ts";
+import type { SoftwareSpecification, TestModule, TestSuite, Test } from "../unitium.ts";
 
 export abstract class BaseReporter
 {
-    constructor(protected specification: SoftwareSpecification) { }
+    protected specification: SoftwareSpecification;
+
+    constructor(specification: SoftwareSpecification)
+    {
+        this.specification = specification;
+    }
 
     onTestRunStart() { };
     onTestRunEnd() { };
