@@ -33,6 +33,20 @@
     "./node-api": "./distribution/node/api.js",
     "./browser-api": "./distribution/browser/api.js"
   },
+  "imports": {
+    "#unitium/assert": {
+      "deno": "./tests/adaptors/assert.deno.ts",
+      "bun": "./tests/adaptors/assert.node.ts",
+      "node": "./tests/adaptors/assert.node.ts",
+      "default": "./tests/adaptors/assert.node.ts"
+    },
+    "#unitium/test-runtime": {
+      "deno": "./tests/adaptors/runtime.deno.ts",
+      "bun": "./tests/adaptors/runtime.node.ts",
+      "node": "./tests/adaptors/runtime.node.ts",
+      "default": "./tests/adaptors/runtime.node.ts"
+    }
+  },
   "author": "Magnus Meseck",
   "license": "MIT",
   "engines": {

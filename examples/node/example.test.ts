@@ -1,4 +1,4 @@
-import assert from "assert";
+import assert from "node:assert";
 import { Sequential } from "./../../source/index.ts";
 import { Test } from "../../source/unitium.ts";
 

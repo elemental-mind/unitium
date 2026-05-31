@@ -1,11 +1,11 @@
-import assert from "assert";
-import { arraysContainSameElements, evaluateNodeSpecIn } from "./tests/utils.ts";
+import assert from "#unitium/assert";
+import { arraysContainSameElements, evaluateSpecIn } from "../tests/utils.ts";
 
 export class ModuleParsingTests
 {
     async shouldHandleEmptyTestModulesGracefully()
     {
-        const results = await evaluateNodeSpecIn("test-scenarios/general/parsing/emptyModule.test.ts");
+        const results = await evaluateSpecIn("test-scenarios/general/parsing/emptyModule.test.ts");
         
         assert(results.testModules.length === 1);
         assert.deepStrictEqual(results.testSuites, []);
@@ -13,9 +13,9 @@ export class ModuleParsingTests
 
     async onlyExportedMembersShouldBeTests()
     {
-        const resultsNoExport = await evaluateNodeSpecIn("test-scenarios/general/parsing/noExports.test.ts");
-        const resultsSingleExport = await evaluateNodeSpecIn("test-scenarios/general/parsing/singleExport.test.ts");
-        const resultsMultipleExports = await evaluateNodeSpecIn("test-scenarios/general/parsing/multiExport.test.ts");
+        const resultsNoExport = await evaluateSpecIn("test-scenarios/general/parsing/noExports.test.ts");
+        const resultsSingleExport = await evaluateSpecIn("test-scenarios/general/parsing/singleExport.test.ts");
+        const resultsMultipleExports = await evaluateSpecIn("test-scenarios/general/parsing/multiExport.test.ts");
 
         assert(arraysContainSameElements(resultsNoExport.testSuites.map(suite => suite.className), []));
         assert(arraysContainSameElements(resultsSingleExport.testSuites.map(suite => suite.className), ["FirstTest"]));
@@ -27,7 +27,7 @@ export class ExecutionModelTests
 {
     async testsShouldExecuteInParallel()
     {
-        const results = await evaluateNodeSpecIn("test-scenarios/general/execution/asyncParallel.test.ts");
+        const results = await evaluateSpecIn("test-scenarios/general/execution/asyncParallel.test.ts");
 
         //@ts-ignore
         assert.deepStrictEqual(results.testSuites[0].testClassConstructor.executionOrder, [3,2,1]);
@@ -38,14 +38,14 @@ export class AssertionDetectionTests
 {
     async shouldRegisterErrorOnFailingTest()
     {
-        const results = await evaluateNodeSpecIn("test-scenarios/general/assertion/failing.test.ts");
+        const results = await evaluateSpecIn("test-scenarios/general/assertion/failing.test.ts");
 
         assert(results.tests[0].error !== undefined);        
     }
     
     async shouldNotRegisterErrorOnPassingTest()
     {
-        const results = await evaluateNodeSpecIn("test-scenarios/general/assertion/passing.test.ts");
+        const results = await evaluateSpecIn("test-scenarios/general/assertion/passing.test.ts");
 
         assert(results.tests[0].error === undefined);
     }
