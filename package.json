@@ -53,9 +53,7 @@
     "node": ">=22.18"
   },
   "bin": {
-    "unitium": "/distribution/node/index.js",
-    "unitium-bun": "/distribution/bun/index.js",
-    "unitium-deno": "/distribution/deno/index.js",
+    "unitium": "/distribution/cli.js",
     "unitium-tsx": "/distribution/node/exec-tsx.js",
     "unitium-ts-node": "/distribution/node/exec-ts-node.js"
   },
@@ -64,9 +62,9 @@
     "patch": "node npm-release.ts && npm version patch && git push && npm publish",
     "release": "node npm-release.ts && npm version minor && git push && npm publish",
     "test": "npm run test:node",
-    "test:node": "node ./source/node/index.ts ./source",
-    "test:bun": "bun ./source/bun/index.ts ./source",
-    "test:deno": "deno run --allow-read ./source/deno/index.ts ./source",
+    "test:node": "node ./source/cli.ts ./source",
+    "test:bun": "bun ./source/cli.ts ./source",
+    "test:deno": "deno run --allow-read ./source/cli.ts ./source",
     "serve": "vite"
   },
   "devDependencies": {
