@@ -1,4 +1,4 @@
-import assert from "assert";
+import assert from "#unitium/assert";
 
 class NoTest
 {
@@ -9,6 +9,14 @@ class NoTest
 }
 
 export class FirstTest
+{
+    passingTest()
+    {
+        assert(true);
+    }
+}
+
+export class SecondTest
 {
     passingTest()
     {

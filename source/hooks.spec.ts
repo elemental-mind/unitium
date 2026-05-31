@@ -6,7 +6,7 @@ export class HooksExecutionModelTests
 {
     async testsShouldExecuteInParallelWithStaticHooks()
     {
-        const results = await evaluateSpecIn("test-scenarios/hooks/staticHooks.test.ts");
+        const results = await evaluateSpecIn("tests/fixtures/hooks/staticHooks.test.ts");
 
         //@ts-ignore
         results.testSuites.forEach(suite => assert.deepEqual(suite.testClassConstructor.executionOrder, [3, 2, 1]));
@@ -14,7 +14,7 @@ export class HooksExecutionModelTests
 
     async testsShouldExecuteInSequenceWithMemberHooks()
     {
-        const results = await evaluateSpecIn("test-scenarios/hooks/memberHooks.test.ts");
+        const results = await evaluateSpecIn("tests/fixtures/hooks/memberHooks.test.ts");
 
         //@ts-ignore
         results.testSuites.forEach(suite => assert.deepEqual(suite.testClassConstructor.executionOrder, [1, 2, 3]));

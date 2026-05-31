@@ -1,4 +1,4 @@
-import assert from "assert";
+import assert from "#unitium/assert";
 
 export class ShouldPassSuite
 {
