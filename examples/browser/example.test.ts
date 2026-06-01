@@ -1,4 +1,4 @@
-import * as assert from "uvu/assert";
+import * as assert from "./assert.ts";
 // normally you just include `import { xxx } from "unitium"`
 import { Sequential } from "../../source/test-suite-api.ts"
 import type { ISequentialTestSuiteMemberHooks } from "../../source/test-suite-api.ts";

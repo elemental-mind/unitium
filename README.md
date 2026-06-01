@@ -336,11 +336,11 @@ Private members (#-prepended) will not be interpreted as tests and can be used a
 
 
 ### Choosing an assertion library
-As browser environments do not include a native `assert` module you need to bring your own assert library. [uvu/assert](https://github.com/lukeed/uvu) is pretty lightweight and easy to use, but you can use any other assertion library like Chai etc. that throws upon false assertions.
+As browser environments do not include a native `assert` module you need to bring your own assertions. This can be a tiny helper in your project or any assertion library that throws upon false assertions.
 Output-support may vary, but feel free to raise an issue if you like to have better support for a common library.
 
 ```typescript
-import assert from "uvu/assert";   // <-- feel free to use any assertion library
+import * as assert from "./assert.ts";   // <-- any throwing assertion helper works
 
 export class TestSuite         // <-- "export" test suites
 {
