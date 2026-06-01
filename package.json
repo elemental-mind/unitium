@@ -15,26 +15,11 @@
   "exports": {
     ".": {
       "types": "./distribution/test-suite-api.d.ts",
-      "bun": "./distribution/test-suite-api.js",
-      "deno": "./distribution/test-suite-api.js",
       "import": "./distribution/test-suite-api.js"
     },
     "./browser/*": "./distribution/environments/browser/*",
-    "./bun": {
-      "types": "./distribution/environments/cli/bun/api.d.ts",
-      "bun": "./distribution/environments/cli/bun/api.js",
-      "import": "./distribution/environments/cli/bun/api.js"
-    },
-    "./deno": {
-      "types": "./distribution/environments/cli/deno/api.d.ts",
-      "deno": "./distribution/environments/cli/deno/api.js",
-      "import": "./distribution/environments/cli/deno/api.js"
-    },
-    "./node-api": "./distribution/environments/cli/node/api.js",
     "./runner-api": {
       "types": "./distribution/runner-api.d.ts",
-      "bun": "./distribution/runner-api.js",
-      "deno": "./distribution/runner-api.js",
       "import": "./distribution/runner-api.js"
     },
     "./browser-api": "./distribution/environments/browser/api.js"
