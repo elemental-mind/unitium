@@ -1,4 +1,28 @@
-export { evaluateSpecIn } from "#unitium/test-runtime";
+import { SoftwareSpecification, TestRunner } from "../source/core/unitium.ts";
+
+type RuntimeModule = {
+    AppSpecification: new () => SoftwareSpecification;
+};
+
+async function getRuntimeModule(): Promise<RuntimeModule>
+{
+    if ("Deno" in globalThis)
+        return await import("../source/environments/cli/deno/api.ts") as RuntimeModule;
+    else if ("Bun" in globalThis)
+        return await import("../source/environments/cli/bun/api.ts") as RuntimeModule;
+    else
+        return await import("../source/environments/cli/node/api.ts") as RuntimeModule;
+}
+
+export async function evaluateSpecIn(fileOrPath: string): Promise<SoftwareSpecification>
+{
+    const { AppSpecification } = await getRuntimeModule();
+    const spec = new AppSpecification();
+    await spec.load([fileOrPath]);
+    await new TestRunner(spec).run();
+
+    return spec;
+}
 
 export function arraysContainSameElements(array1: any[], array2: any[])
 {
