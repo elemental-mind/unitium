@@ -1,60 +1,51 @@
-import { SoftwareSpecification, TestRunner } from "./core/unitium.ts";
-import type { BaseReporter } from "./reporters/base.ts";
-import { ConsoleReporter } from "./reporters/consoleReporter.ts";
-import { JSONReporter } from "./reporters/jsonReporter.ts";
-import type { CliRuntimeAdapter } from "./environments/cli/api.ts";
-
-type RuntimeModule = {
-    AppSpecification: new () => SoftwareSpecification;
-    ProcessEnvironment: CliRuntimeAdapter;
-};
+import { ConsoleReporter, JSONReporter, RuntimeEnvironment, SoftwareSpecification, TestRunner } from "./runner-api.ts";
+import type { BaseReporter, CliRuntimeAdapter } from "./runner-api.ts";
 
 type RuntimeRunnerOptions = {
     silent: boolean;
     outputJSON: boolean;
 };
 
-class CLIRunner
+type RuntimeRunnerArguments = {
+    options: RuntimeRunnerOptions;
+    entryPoints: string[];
+};
+
+class CLIRunner extends TestRunner
 {
-    private runtime!: CliRuntimeAdapter;
-    private AppSpecification!: new () => SoftwareSpecification;
-    private options!: RuntimeRunnerOptions;
-    private entryPoints!: string[];
+    private runtime: CliRuntimeAdapter;
 
-    async initialize()
+    private constructor(
+        loadedSpecification: SoftwareSpecification,
+        reporters: BaseReporter[],
+        runtime: CliRuntimeAdapter
+    )
     {
-        const { AppSpecification, ProcessEnvironment } = await this.getRuntimeModule();
-        const { options, entryPoints: fileSystemReferences } = this.parseRuntimeArguments(ProcessEnvironment.process.cliArgs);
-
-        this.runtime = ProcessEnvironment;
-        this.AppSpecification = AppSpecification;
-        this.options = options;
-        this.entryPoints = fileSystemReferences;
-
-        return this;
+        super(loadedSpecification, reporters);
+        this.runtime = runtime;
     }
 
-    async runTests()
+    static async initialize(): Promise<{ runner: CLIRunner; }>
     {
-        const spec = new this.AppSpecification();
-        await spec.load(this.entryPoints);
-        await new TestRunner(spec, this.getReporters(spec)).run();
+        const { AppSpecification, ProcessEnvironment } = await RuntimeEnvironment.resolveRuntimeModules();
+        const { options, entryPoints } = this.parseRuntimeArguments(ProcessEnvironment.process.cliArgs);
 
-        if (spec.tests.some(test => test.error != undefined))
+        const spec = new AppSpecification();
+        await spec.load(entryPoints);
+
+        // CLIRunner is awaitable through TestRunner, so wrap it to avoid async return thenable assimilation.
+        return { runner: new CLIRunner(spec, this.resolveReporters(options, spec), ProcessEnvironment) };
+    }
+
+    async run()
+    {
+        await super.run();
+
+        if (this.specification.tests.some(test => test.error != undefined))
             this.runtime.process.terminateWithError(1);
     }
 
-    async getRuntimeModule(): Promise<RuntimeModule>
-    {
-        if ("Deno" in globalThis)
-            return await import("./environments/cli/deno/api.ts") as RuntimeModule;
-        else if ("Bun" in globalThis)
-            return await import("./environments/cli/bun/api.ts") as RuntimeModule;
-        else
-            return await import("./environments/cli/node/api.ts") as RuntimeModule;
-    }
-
-    parseRuntimeArguments(args: string[])
+    private static parseRuntimeArguments(args: string[]): RuntimeRunnerArguments
     {
         return {
             options: {
@@ -65,16 +56,16 @@ class CLIRunner
         };
     }
 
-    getReporters(spec: SoftwareSpecification): BaseReporter[]
+    private static resolveReporters(options: RuntimeRunnerOptions, spec: SoftwareSpecification): BaseReporter[]
     {
-        if (this.options.silent)
+        if (options.silent)
             return [];
-        else if (this.options.outputJSON)
+        else if (options.outputJSON)
             return [new JSONReporter(spec)];
         else
             return [new ConsoleReporter(spec)];
     }
 }
 
-const runner = await (new CLIRunner()).initialize();
-await runner.runTests();
+const { runner } = await CLIRunner.initialize();
+await runner.run();

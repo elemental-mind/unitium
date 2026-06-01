@@ -31,6 +31,12 @@
       "import": "./distribution/environments/cli/deno/api.js"
     },
     "./node-api": "./distribution/environments/cli/node/api.js",
+    "./runner-api": {
+      "types": "./distribution/runner-api.d.ts",
+      "bun": "./distribution/runner-api.js",
+      "deno": "./distribution/runner-api.js",
+      "import": "./distribution/runner-api.js"
+    },
     "./browser-api": "./distribution/environments/browser/api.js"
   },
   "author": "Magnus Meseck",
