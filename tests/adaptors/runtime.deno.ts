@@ -1,9 +1,10 @@
-import { DenoAppSpecification } from "../../source/runtimes/deno/api.ts";
+import { AppSpecification } from "../../source/environments/cli/deno/api.ts";
 import { SoftwareSpecification, TestRunner } from "../../source/core/unitium.ts";
 
 export async function evaluateSpecIn(fileOrPath: string): Promise<SoftwareSpecification>
 {
-    const spec = await DenoAppSpecification.load([fileOrPath]);
+    const spec = new AppSpecification();
+    await spec.load([fileOrPath]);
     await new TestRunner(spec).run();
 
     return spec;

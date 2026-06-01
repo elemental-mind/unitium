@@ -70,7 +70,7 @@
     "verbatimModuleSyntax": true,
     "baseUrl": "./",
     "paths": {
-      "unitium": ["source/index.ts"]
+      "unitium": ["source/suite-api.ts"]
     }
   },
   // "exclude": ["example"],

@@ -14,6 +14,8 @@ export class TestRunner extends Awaitable
     )
     {
         super();
+        if (!loadedSpecification.isLoaded)
+            throw new Error("Cannot run an unloaded software specification. Call load() before passing it to TestRunner.");
         this.specification = loadedSpecification;
         this.reporters = reporters;
     }
@@ -74,6 +76,7 @@ export abstract class Observable extends Serializable
 export abstract class SoftwareSpecification extends Serializable
 {
     public testModules: TestModule[] = [];
+    public isLoaded = false;
 
     get testSuites()
     {
@@ -85,10 +88,15 @@ export abstract class SoftwareSpecification extends Serializable
         return this.testSuites.flatMap(suite => suite.tests);
     }
 
-    protected async loadModule(path: string)
+    public async load(entryPointsOrModuleURLs: string[] = [])
     {
-        this.testModules.push(new TestModule(path, await import(/*@vite-ignore*/path)));
+        for (const moduleURL of await this.resolveTestModuleURLs(entryPointsOrModuleURLs))
+            this.testModules.push(new TestModule(moduleURL, await import(/*@vite-ignore*/moduleURL)));
+
+        this.isLoaded = true;
     }
+
+    abstract resolveTestModuleURLs(entryPoints: string[]): Promise<string[]>;
 
     serialize()
     {
@@ -100,13 +108,9 @@ export abstract class SoftwareSpecification extends Serializable
 
 export class URLSetSpecification extends SoftwareSpecification
 {
-    static async load(URLs: string[]): Promise<URLSetSpecification>
+    async resolveTestModuleURLs(moduleURLs: string[])
     {
-        const spec = new URLSetSpecification();
-
-        await Promise.all(URLs.map(url => spec.loadModule(url)));
-
-        return spec;
+        return moduleURLs;
     }
 }
 

@@ -76,7 +76,7 @@ async function removeTestFiles(folder: string)
 
 async function copyCSSFiles()
 {
-    await fs.copyFile("source/runtimes/browser/style.css", "distribution/runtimes/browser/style.css");
+    await fs.copyFile("source/environments/browser/style.css", "distribution/environments/browser/style.css");
 }
 
 prepareRelease();
