@@ -1,4 +1,4 @@
-import { Sequential } from "../../../source/unitium.ts";
+import { Sequential } from "../../../source/suite-api.ts";
 
 class SequentialTestSuiteFixture
 {

@@ -1,4 +1,4 @@
-import { Debug } from "../../../source/unitium.ts";
+import { Debug } from "../../../source/suite-api.ts";
 
 export class ParallelDebugSuite
 {
