@@ -17,11 +17,11 @@
       "types": "./distribution/test-suite-api.d.ts",
       "import": "./distribution/test-suite-api.js"
     },
-    "./browser/*": "./distribution/environments/browser/*",
     "./runner-api": {
       "types": "./distribution/runner-api.d.ts",
       "import": "./distribution/runner-api.js"
     },
+    "./browser/*": "./distribution/environments/browser/*",
     "./browser-api": "./distribution/environments/browser/api.js"
   },
   "author": "Magnus Meseck",
