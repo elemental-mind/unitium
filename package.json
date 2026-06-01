@@ -9,29 +9,29 @@
     "typescript"
   ],
   "type": "module",
-  "types": "./distribution/index.d.ts",
-  "module": "./distribution/index.js",
-  "main": "./distribution/index.js",
+  "types": "./distribution/unitium.d.ts",
+  "module": "./distribution/unitium.js",
+  "main": "./distribution/unitium.js",
   "exports": {
     ".": {
-      "types": "./distribution/index.d.ts",
-      "bun": "./distribution/index.js",
-      "deno": "./distribution/index.js",
-      "import": "./distribution/index.js"
+      "types": "./distribution/unitium.d.ts",
+      "bun": "./distribution/unitium.js",
+      "deno": "./distribution/unitium.js",
+      "import": "./distribution/unitium.js"
     },
-    "./browser/*": "./distribution/browser/*",
+    "./browser/*": "./distribution/runtimes/browser/*",
     "./bun": {
-      "types": "./distribution/bun/index.d.ts",
-      "bun": "./distribution/bun/index.js",
-      "import": "./distribution/bun/index.js"
+      "types": "./distribution/runtimes/bun/index.d.ts",
+      "bun": "./distribution/runtimes/bun/index.js",
+      "import": "./distribution/runtimes/bun/index.js"
     },
     "./deno": {
-      "types": "./distribution/deno/index.d.ts",
-      "deno": "./distribution/deno/index.js",
-      "import": "./distribution/deno/index.js"
+      "types": "./distribution/runtimes/deno/index.d.ts",
+      "deno": "./distribution/runtimes/deno/index.js",
+      "import": "./distribution/runtimes/deno/index.js"
     },
-    "./node-api": "./distribution/node/api.js",
-    "./browser-api": "./distribution/browser/api.js"
+    "./node-api": "./distribution/runtimes/node/api.js",
+    "./browser-api": "./distribution/runtimes/browser/api.js"
   },
   "imports": {
     "#unitium/assert": {
@@ -54,8 +54,8 @@
   },
   "bin": {
     "unitium": "/distribution/cli.js",
-    "unitium-tsx": "/distribution/node/exec-tsx.js",
-    "unitium-ts-node": "/distribution/node/exec-ts-node.js"
+    "unitium-tsx": "/distribution/runtimes/node/exec-tsx.js",
+    "unitium-ts-node": "/distribution/runtimes/node/exec-ts-node.js"
   },
   "scripts": {
     "dry-update": "node npm-release.ts",

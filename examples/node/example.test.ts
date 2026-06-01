@@ -1,6 +1,6 @@
 import assert from "node:assert";
-import { Sequential } from "./../../source/index.ts";
-import { Test } from "../../source/unitium.ts";
+import { Sequential } from "../../source/unitium.ts";
+import type { Test } from "../../source/core/unitium.ts";
 
 export class BasicExampleTests
 {

@@ -1,5 +1,5 @@
-import { DenoAppSpecification } from "../../source/deno/api.ts";
-import { SoftwareSpecification, TestRunner } from "../../source/unitium.ts";
+import { DenoAppSpecification } from "../../source/runtimes/deno/api.ts";
+import { SoftwareSpecification, TestRunner } from "../../source/core/unitium.ts";
 
 export async function evaluateSpecIn(fileOrPath: string): Promise<SoftwareSpecification>
 {

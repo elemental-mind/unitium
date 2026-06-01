@@ -1,4 +1,4 @@
-import { Debug, Sequential } from "../../../source/decorators.ts";
+import { Debug, Sequential } from "../../../source/unitium.ts";
 
 class SequentialDebugSuiteFixture
 {

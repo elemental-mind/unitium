@@ -297,11 +297,11 @@ Alternatively you can download Unitium from an npm-based CDN:
 ...
 <head>
     ...
-    <link rel="stylesheet" href="https://unpkg.com/unitium/distribution/browser/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/unitium/distribution/runtimes/browser/style.css">
     ...
 </head>
 <body>
-    <script src="https://unpkg.com/unitium/distribution/browser/index.js" type="module"></script>
+    <script src="https://unpkg.com/unitium/distribution/runtimes/browser/index.js" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
