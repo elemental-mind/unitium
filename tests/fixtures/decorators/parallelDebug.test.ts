@@ -10,6 +10,7 @@ export class ParallelDebugSuite
         ParallelDebugSuite.executionOrder.push(1);
     }
 
+    @Debug
     async second()
     {
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -22,5 +23,3 @@ export class ParallelDebugSuite
         ParallelDebugSuite.executionOrder.push(3);
     }
 }
-
-Debug(ParallelDebugSuite.prototype, "second");

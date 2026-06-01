@@ -6,11 +6,13 @@ export class TestRunner extends Awaitable
 {
     public specification: SoftwareSpecification;
     public reporters?: BaseReporter[];
+    public options: TestRunnerOptions;
 
     testingCompleted = new Awaitable();
     constructor(
         loadedSpecification: SoftwareSpecification,
-        reporters?: BaseReporter[]
+        reporters?: BaseReporter[],
+        options: TestRunnerOptions = {}
     )
     {
         super();
@@ -18,6 +20,7 @@ export class TestRunner extends Awaitable
             throw new Error("Cannot run an unloaded software specification. Call load() before passing it to TestRunner.");
         this.specification = loadedSpecification;
         this.reporters = reporters;
+        this.options = options;
     }
 
     async run()
@@ -42,7 +45,8 @@ export class TestRunner extends Awaitable
                 //If the suite is parallel, we only execute the test
                 debugSuite.tests = debugSuite.tests.filter(test => test === debugTest);
 
-            console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`);
+            if (!this.options.suppressDebugWarning)
+                console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`);
         }
 
         if (!debugSuite && this.reporters)
@@ -61,6 +65,10 @@ export class TestRunner extends Awaitable
         this.testingCompleted.resolve();
     }
 }
+
+type TestRunnerOptions = {
+    suppressDebugWarning?: boolean;
+};
 
 abstract class Serializable
 {

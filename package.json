@@ -1,7 +1,7 @@
 {
   "name": "unitium",
   "version": "0.6.0",
-  "description": "Class based unit testing for node & the browser",
+  "description": "Class based unit testing for Node, Bun, Deno & the browser",
   "keywords": [
     "test-runner",
     "unit-testing",
@@ -39,13 +39,14 @@
     "patch": "node npm-release.ts && npm version patch && git push && npm publish",
     "release": "node npm-release.ts && npm version minor && git push && npm publish",
     "test": "npm run test:node",
-    "test:node": "node ./source/cli.ts ./source",
+    "test:node": "tsx ./source/cli.ts ./source",
     "test:bun": "bun ./source/cli.ts ./source",
     "test:deno": "deno run --allow-read ./source/cli.ts ./source",
     "serve": "vite"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.8.0"
   },
   "dependencies": {

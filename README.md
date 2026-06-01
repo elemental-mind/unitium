@@ -1,8 +1,8 @@
 # Organize your unit tests in classes
 ## Get started straight away
-[Node Quickstart](#use-node) | [Browser Quickstart](#use-browser)
+[Node](#runtime-commands) | [Deno](#runtime-commands) | [Bun](#runtime-commands) | [Browser](#use-browser)
 ## Introduction
-Unitium is a super simple test runner for node & the browser that will allow you to create test suites with classes:
+Unitium is a super simple test runner for Node, Bun, Deno, and the browser that will allow you to create test suites with classes:
 
 ```typescript
 // example.test.ts
@@ -51,9 +51,9 @@ Basic Example Test Suite
 - Every test run will be served a "fresh" class instance - its constructor will be run before every member function call.
     - If you do not desire this behaviour, decorate your class with the `@Sequential` decorator. The class will then preserve its state between function calls. Test/functions will be called in order of appearance in the class.
 
-<a id="use-node"></a>
+<a id="use-cli-runtimes"></a>
 
-# Usage for node
+# CLI usage
 
 ## Installation
 
@@ -64,7 +64,7 @@ npm install --save-dev unitium
 
 ## Create test files
 ### Name your files
-Unitium for node supports `js` and `ts` (see Typescript-support section) files for testing. You may place your files anywhere in your code repository. Unitium looks for files ending on either `.test.ts`/`.spec.ts` or `.test.js`/`.spec.js` respectively.
+Unitium supports `js` and `ts` files for testing in Node, Bun, and Deno. You may place your files anywhere in your code repository. Unitium looks for files ending on either `.test.ts`/`.spec.ts` or `.test.js`/`.spec.js` respectively.
 
 There is no special folder to place your tests in - Unitium was created with repositories in mind where test files are placed right along the source files of the to be tested code. For example:
 ```
@@ -118,6 +118,8 @@ As mentioned, by default test suite test are run in parallel by default. But by 
 If a class is decorated with `@Sequential` only one single instance of a test suite will be created and passed through the test functions in order of appearance.
 
 ```typescript
+import { Sequential } from "unitium";
+
 @Sequential
 class SequentialTestSuite
 {
@@ -191,7 +193,7 @@ class DBTest
 
 Once you have installed Unitium and written your tests it's time to test:
 ```
-    npx unitium
+    npx unitium-tsx
 ```
 Unitium will then scan the directory for test files, load them and then start their respective test suites.
 
@@ -200,50 +202,45 @@ You may want to add the following line to your `package.json`:
 ```json
 ...
     "scripts": {
-        "test": "unitium"
+        "test": "unitium-tsx"
     }
 ...
 ```
 
 ### Running tests in specific files/directories
 
-By default Unitium will scan your entire working directory for testing files.
+By default Unitium will scan your entire working directory for testing files. It is recommended to specify the folder that contains your tests, especially in larger repositories.
 
 You can specify certain files or folders to search for tests in:
 ```
-    npx unitium ./src/module.test.ts ./testingFolder ./anotherTestingFolder/
+    npx unitium-tsx ./src/module.test.ts ./testingFolder ./anotherTestingFolder/
 ```
 If you specify files or folders only these specified entities will be searched for tests.
 
-## Typescript support
+Unitium currently does not read `.gitignore`, so ignored build output, fixture folders, or generated files can still be scanned if they contain files ending in `.test.ts`, `.spec.ts`, `.test.js`, or `.spec.js`.
 
-Using the standard `unitium` command on typescript projects will lead to module resolution errors as Unitium does not do any transpilation etc. To resolve this, there are two additional commands supplied: `unitium-tsx` and `unitium-ts-node`.
+## Runtime commands
 
-Unitium itself is kept lean and as config-free as possible. It should work out of the box. As you are probably already set up with a global install of either `ts-node` or `tsx`, Unitium offers these two variants as alternative commands that assume you have the respective tool installed globally.
+Use the command that matches the runtime that will execute your tests:
 
-For invoking `ts-node` adapt the following commands:
+| Runtime | Command |
+| --- | --- |
+| Node with TypeScript | `npx unitium-tsx` |
+| Node with JavaScript | `npx unitium` |
+| Bun | `bun x unitium` |
+| Deno | `deno x --allow-read unitium` |
+
+The plain `unitium` command runs JavaScript directly. Node supports native TypeScript execution in newer versions, but features that require type transformations are not supported by native type stripping. For decorators and other non-strippable TypeScript features, prefer `unitium-tsx` or `unitium-ts-node`.
+
+All CLI runtime commands accept the same flags and file or folder arguments:
+
 ```
-    npx unitium-ts-node
-```
-```json
-...
-    "scripts": {
-        "test": "unitium-ts-node"
-    }
-...
+npx unitium-tsx --json ./src ./tests/example.test.ts
+bun x unitium --silent ./src
+deno x --allow-read unitium ./src
 ```
 
-For invoking `tsx` adapt the following commands:
-```
-    npx unitium-tsx
-```
-```json
-...
-    "scripts": {
-        "test": "unitium-ts-node"
-    }
-...
-```
+`deno x` fetches and runs Unitium on demand, so no separate `deno install` step is needed. Bun's package runner is invoked as `bun x unitium`.
 <a id="use-browser"></a>
 
 # Usage for the browser
@@ -256,16 +253,16 @@ You can install Unitium from npm if you use a build tool:
 ```
 npm install --save-dev unitium
 ```
-If you are lucky and your build tool supports it you can include the package specifiers straight in your html:
+If your build tool supports package specifiers in HTML, you can reference Unitium through its package exports:
 ```html
 ...
 <head>
     ...
-    <link rel="stylesheet" href="unitium/assets/unitium.css">
+    <link rel="stylesheet" href="unitium/browser/style.css">
     ...
 </head>
 <body>
-    <script src="unitium" type="module"></script>
+    <script src="unitium/browser/index.js" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
@@ -278,11 +275,11 @@ Otherwise reference the files from node_modules directly:
 ...
 <head>
     ...
-    <link rel="stylesheet" href="./node_modules/unitium/distribution/assets/unitium.css">
+    <link rel="stylesheet" href="./node_modules/unitium/distribution/environments/browser/style.css">
     ...
 </head>
 <body>
-    <script src="./node-modules/unitium/distribution/unitium-browser.ts" type="module"></script>
+    <script src="./node_modules/unitium/distribution/environments/browser/index.js" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
@@ -297,11 +294,11 @@ Alternatively you can download Unitium from an npm-based CDN:
 ...
 <head>
     ...
-    <link rel="stylesheet" href="https://unpkg.com/unitium/distribution/runtimes/browser/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/unitium/distribution/environments/browser/style.css">
     ...
 </head>
 <body>
-    <script src="https://unpkg.com/unitium/distribution/runtimes/browser/index.js" type="module"></script>
+    <script src="https://unpkg.com/unitium/distribution/environments/browser/index.js" type="module"></script>
     <script test src="example.test.ts" type="module"></script>
     <main>
         <div id="unitium-output"></div>
@@ -411,12 +408,20 @@ If you would like to use Unitium programmatically, you can either use the CLI or
 
 ## CLI Runner Reference
 
-There are three executables distributed with unitium:
-- `unitium`: The standard JS-Runner that runs in node.
-- `unitium-tsx`: A TS-Runner that assumes `tsx` is installed globally.
-- `unitium-ts-node`: A TS-Runner that assumes `ts-node` is installed globally.
+There are three Node executables distributed with unitium:
+- `unitium`: The standard JS runner.
+- `unitium-tsx`: A TS runner that invokes `tsx`.
+- `unitium-ts-node`: A TS runner that invokes `ts-node`.
 
-By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. All executables foolow the same CLI schema:
+Bun and Deno can execute the same CLI through their package runners:
+- `bun x unitium`
+- `deno x --allow-read unitium`
+
+`deno x` fetches Unitium and its npm dependencies on demand. Bun uses `bun x` for the same package-runner workflow.
+
+Node supports native TypeScript execution in recent versions, but native type stripping does not handle TypeScript features that need transformations. Use `unitium-tsx` or `unitium-ts-node` for tests that use decorators or other non-strippable TypeScript features.
+
+By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. All executables follow the same CLI schema:
 
 `unitium [flags] [files/folders]`
 
@@ -426,26 +431,28 @@ By default these runners scan your current working directory for files ending on
 
 ### Specifying Files/Folders
 
-If you specify one or more space delimited files, only these files will be used for testing:
+You can combine individual test files and folders in one command. When you provide paths, Unitium only uses those files and the test files found inside those folders:
 
-`unitium-tsx --json ./path/to/onlyTestsInThisFileWillBeExecuted.ts`
+`unitium-tsx --json ./path/to/specific.test.ts ./path/to/testFolder`
 
-If you specify one or more space delimited folders, only test files in these folders and subfolders will be used for testing.
-
-`unitium-tsx --json ./path/to/onlyTestFilesInThisFolderWillBeUsed`
+Specifying files or folders is recommended because Unitium currently does not respect `.gitignore` while scanning.
 
 ## JS Runner API
 
 You can also invoke the runner programmatically through its JS API.
 
+`RuntimeEnvironment.resolveRuntimeModules()` selects the file-system adapter for the runtime that is executing the current process. Use it when you want the same programmatic runner code to work in Node, Bun, and Deno.
+
 ```typescript
-import { NodeAppSpecification, TestRunner, ConsoleReporter } from "unitium/node-api";
+import { RuntimeEnvironment, TestRunner, ConsoleReporter } from "unitium/runner-api";
 
 ...
     async runTests()
     {
-        const spec = await NodeAppSpecification.load();
-        await new TestRunner(spec, [new ConsoleReporter()]).run();
+        const { AppSpecification } = await RuntimeEnvironment.resolveRuntimeModules();
+        const spec = new AppSpecification();
+        await spec.load([]);
+        await new TestRunner(spec, [new ConsoleReporter(spec)]).run();
 
         //after the tests are run you can inspect the results
         if(spec.tests.includes(test => test.error !== undefined))
@@ -454,12 +461,14 @@ import { NodeAppSpecification, TestRunner, ConsoleReporter } from "unitium/node-
 ...
 ```
 
-This behaves the same as invoking the CLI. If you would like to customize which files/URLs are loaded you can either pass an array of file/folder paths to the `NodeAppSpecification.load` function or utilize the utility class `ULRSetSpecification`:
+This behaves the same as invoking the CLI. If you would like to customize which files or folders are loaded, pass them to `spec.load`:
 
 ```typescript 
-        import { URLSetSpecification, TestRunner, ConsoleReporter } from "unitium/node-api";
+        import { RuntimeEnvironment, TestRunner, ConsoleReporter } from "unitium/runner-api";
         //...
-        const spec = await URLSetSpecification.load(["file://C:/path/to/file.js", "http://specCentral.org/tests.js"])
+        const { AppSpecification } = await RuntimeEnvironment.resolveRuntimeModules();
+        const spec = new AppSpecification();
+        await spec.load(["./src/module.test.ts", "./tests"]);
         //...
 ```
 You can control `stdout` output by passing an array of one or more reporters to the `TestRunner` constructor. The currently available reporters are:

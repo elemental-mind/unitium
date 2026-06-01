@@ -1,27 +1,26 @@
 import { Debug, Sequential } from "../../../source/test-suite-api.ts";
 
-class SequentialDebugSuiteFixture
+@Sequential
+export class SequentialDebugSuite
 {
     static executionOrder: number[] = [];
     
     async first()
     {
         await new Promise(resolve => setTimeout(resolve, 300));
-        SequentialDebugSuiteFixture.executionOrder.push(1);
+        SequentialDebugSuite.executionOrder.push(1);
     }
 
+    @Debug
     async second()
     {
         await new Promise(resolve => setTimeout(resolve, 200));
-        SequentialDebugSuiteFixture.executionOrder.push(2);
+        SequentialDebugSuite.executionOrder.push(2);
     }
 
     async third()
     {
         await new Promise(resolve => setTimeout(resolve, 100));
-        SequentialDebugSuiteFixture.executionOrder.push(3);
+        SequentialDebugSuite.executionOrder.push(3);
     }
 }
-
-Debug(SequentialDebugSuiteFixture.prototype, "second");
-export const SequentialDebugSuite = Sequential(SequentialDebugSuiteFixture);

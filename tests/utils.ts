@@ -19,7 +19,7 @@ export async function evaluateSpecIn(fileOrPath: string): Promise<SoftwareSpecif
     const { AppSpecification } = await getRuntimeModule();
     const spec = new AppSpecification();
     await spec.load([fileOrPath]);
-    await new TestRunner(spec).run();
+    await new TestRunner(spec, undefined, { suppressDebugWarning: true }).run();
 
     return spec;
 }
