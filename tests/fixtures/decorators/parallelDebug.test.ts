@@ -1,4 +1,4 @@
-import { Debug } from "../../../source/suite-api.ts";
+import { Debug } from "../../../source/test-suite-api.ts";
 
 export class ParallelDebugSuite
 {

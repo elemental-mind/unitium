@@ -9,15 +9,15 @@
     "typescript"
   ],
   "type": "module",
-  "types": "./distribution/suite-api.d.ts",
-  "module": "./distribution/suite-api.js",
-  "main": "./distribution/suite-api.js",
+  "types": "./distribution/test-suite-api.d.ts",
+  "module": "./distribution/test-suite-api.js",
+  "main": "./distribution/test-suite-api.js",
   "exports": {
     ".": {
-      "types": "./distribution/suite-api.d.ts",
-      "bun": "./distribution/suite-api.js",
-      "deno": "./distribution/suite-api.js",
-      "import": "./distribution/suite-api.js"
+      "types": "./distribution/test-suite-api.d.ts",
+      "bun": "./distribution/test-suite-api.js",
+      "deno": "./distribution/test-suite-api.js",
+      "import": "./distribution/test-suite-api.js"
     },
     "./browser/*": "./distribution/environments/browser/*",
     "./bun": {

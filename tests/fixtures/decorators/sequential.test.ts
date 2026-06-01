@@ -1,4 +1,4 @@
-import { Sequential } from "../../../source/suite-api.ts";
+import { Sequential } from "../../../source/test-suite-api.ts";
 
 class SequentialTestSuiteFixture
 {
