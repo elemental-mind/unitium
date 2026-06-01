@@ -1,9 +1,9 @@
 #!/usr/bin/env -S deno run --allow-read
 
-import { SoftwareSpecification, TestRunner } from '../unitium.ts';
-import type { BaseReporter } from '../reporters/base.ts';
-import { JSONReporter } from '../reporters/jsonReporter.ts';
-import { ConsoleReporter } from '../reporters/consoleReporter.ts';
+import { SoftwareSpecification, TestRunner } from '../../core/unitium.ts';
+import type { BaseReporter } from '../../reporters/base.ts';
+import { JSONReporter } from '../../reporters/jsonReporter.ts';
+import { ConsoleReporter } from '../../reporters/consoleReporter.ts';
 
 type DenoRuntime = {
     args: string[];

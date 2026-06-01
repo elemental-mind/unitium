@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { SoftwareSpecification, TestRunner } from '../unitium.ts';
+import { SoftwareSpecification, TestRunner } from '../../core/unitium.ts';
 import type { Dirent } from "fs";
 import * as fs from "fs/promises";
 import path from "path";
-import type { BaseReporter } from '../reporters/base.ts';
-import { JSONReporter } from '../reporters/jsonReporter.ts';
-import { ConsoleReporter } from '../reporters/consoleReporter.ts';
+import type { BaseReporter } from '../../reporters/base.ts';
+import { JSONReporter } from '../../reporters/jsonReporter.ts';
+import { ConsoleReporter } from '../../reporters/consoleReporter.ts';
 
 type NodeRunnerOptions = typeof defaultNodeOptions;
 const defaultNodeOptions = {

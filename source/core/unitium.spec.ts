@@ -1,5 +1,5 @@
 import assert from "#unitium/assert";
-import { arraysContainSameElements, evaluateSpecIn } from "../tests/utils.ts";
+import { arraysContainSameElements, evaluateSpecIn } from "../../tests/utils.ts";
 
 export class ModuleParsingTests
 {

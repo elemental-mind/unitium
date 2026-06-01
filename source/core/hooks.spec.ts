@@ -1,5 +1,5 @@
 import assert from "#unitium/assert";
-import { evaluateSpecIn } from "../tests/utils.ts";
+import { evaluateSpecIn } from "../../tests/utils.ts";
 
 
 export class HooksExecutionModelTests

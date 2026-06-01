@@ -1,5 +1,5 @@
 import { BaseReporter } from "./base.ts";
-import { TestModule, TestSuite, Test, TestError } from "../unitium.ts";
+import { TestModule, TestSuite, Test, TestError } from "../core/unitium.ts";
 
 export class ConsoleReporter extends BaseReporter
 {
