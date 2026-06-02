@@ -4,7 +4,20 @@ import type { ConsoleJSONTestReport } from "../source/automation-api.ts";
 
 const run = promisify(execFile);
 
-type Command = { command: string, args: string[]; };
+const testCommands = {
+    node: {
+        command: "tsx",
+        args: ["./source/cli.ts", "--json", "./source"],
+    },
+    bun: {
+        command: "bun",
+        args: ["./source/cli.ts", "--json", "./source"],
+    },
+    deno: {
+        command: "deno",
+        args: ["run", "--allow-read", "--allow-env", "./source/cli.ts", "--json", "./source"],
+    },
+};
 
 const ReportSymbols = new Map([
     [undefined, "🟠"],
@@ -14,34 +27,19 @@ const ReportSymbols = new Map([
 
 export class MultiRuntimeTester
 {
-    private testCommands: Record<string, Command> = {
-        node: {
-            command: "tsx",
-            args: ["./source/cli.ts", "./source", "--json"],
-        },
-        bun: {
-            command: "bun",
-            args: ["./source/cli.ts", "./source", "--json"],
-        },
-        deno: {
-            command: "deno",
-            args: ["run", "--allow-read", "--allow-env", "./source/cli.ts", "./source", "--json"],
-        },
-    };
-
     async run()
     {
         const runtimeResults = {} as Record<string, ConsoleJSONTestReport>;
 
-        await Promise.all(Object.entries(this.testCommands)
+        await Promise.all(Object.entries(testCommands)
             .map(([environment, command]) =>
                 this.executeCommand(command)
                     .then(result => runtimeResults[environment] = JSON.parse(result))));
 
-        this.printResults(runtimeResults);
+        this.print(runtimeResults);
     }
 
-    private async executeCommand(command: Command)
+    private async executeCommand(command: { command: string; args: string[]; })
     {
         try
         {
@@ -54,28 +52,22 @@ export class MultiRuntimeTester
         }
     }
 
-    private printResults(results: Record<string, ConsoleJSONTestReport>)
+    private print(results: Record<string, ConsoleJSONTestReport>)
     {
-        const { consolidatedResults, maxTestNameLength } = this.consolidateResults(results);
+        const { consolidatedResults, maxTestNameLength } = this.consolidate(results);
+        const maxEnvLen = Math.max(...Object.keys(results).map(k => k.length));
+        const header = Object.keys(results).map(k => k.padEnd(maxEnvLen)).join(" | ");
 
-        const maxRuntimeNameLength = Object.keys(results).reduce((maxLength, current) => Math.max(maxLength, current.length), 0);
-
-        const suiteEnvHeader = Object.keys(results).map(runtimeName => runtimeName.padEnd(maxRuntimeNameLength)).join(" | ");
-
-        for (const moduleName in consolidatedResults)
+        for (const [modName, mod] of Object.entries(consolidatedResults))
         {
-            const module = consolidatedResults[moduleName];
-
-            console.group(moduleName);
-            for (const suiteName in module)
+            console.group(modName);
+            for (const [suiteName, suite] of Object.entries(mod))
             {
-                const suite = module[suiteName];
-
-                console.group(suiteName.padEnd(maxTestNameLength + 2) + suiteEnvHeader);
-                for (const testName in suite)
+                console.group(suiteName.padEnd(maxTestNameLength + 2) + header);
+                for (const [testName, envResults] of Object.entries(suite))
                 {
-                    const envResults = suite[testName];
-                    this.printTestResult(testName, envResults, maxTestNameLength, results, maxRuntimeNameLength);
+                    const resultColumns = Object.keys(results).map(env => ReportSymbols.get(envResults[env])!.padEnd(maxEnvLen));
+                    console.log(testName.padEnd(maxTestNameLength) + resultColumns.join(" | "));
                 }
                 console.log();
                 console.groupEnd();
@@ -85,17 +77,7 @@ export class MultiRuntimeTester
         }
     }
 
-    private printTestResult(testName: string, envResults: Record<keyof typeof envReports, "Fail" | "Pass">, maxTestNameLength: number, envReports: Record<string, ConsoleJSONTestReport>, maxEnvNameLength: number)
-    {
-        const results = [];
-
-        for (const envName in envReports)
-            results.push(ReportSymbols.get(envResults[envName])!.padEnd(maxEnvNameLength));
-
-        console.log(testName.padEnd(maxTestNameLength) + results.join(" | "));
-    }
-
-    private consolidateResults(results: Record<string, ConsoleJSONTestReport>)
+    private consolidate(results: Record<string, ConsoleJSONTestReport>)
     {
         type ModulePath = string;
         type SuiteName = string;
@@ -112,8 +94,8 @@ export class MultiRuntimeTester
 
         let maxTestNameLength = 0;
 
-        for (const environment in results)
-            for (const module of results[environment].modules)
+        for (const [environment, report] of Object.entries(results))
+            for (const module of report.modules)
                 for (const suite of module.suites)
                     for (const test of suite.tests)
                     {
