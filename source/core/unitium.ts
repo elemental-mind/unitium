@@ -266,7 +266,8 @@ export class TestSuite extends Observable
     serialize()
     {
         return {
-            name: this.className,
+            class: this.className,
+            name: this.name,
             tests: this.tests.map(test => test.serialize())
         };
     }
@@ -312,9 +313,17 @@ export class Test extends Observable
 
     serialize()
     {
+        let status;
+        if (!this.runCompleted.isResolved)
+            status = "None";
+        else
+            status = this.error ? "Fail" : "Pass";
+
         return {
+            method: this.testFunctionName,
             name: this.name,
             description: this.description,
+            status: status as "None" | "Fail" | "Pass",
             error: this.error
         };
     }

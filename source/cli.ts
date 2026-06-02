@@ -42,7 +42,7 @@ class CLIRunner extends TestRunner
         await super.run();
 
         if (this.specification.tests.some(test => test.error != undefined))
-            this.runtime.process.terminateWithError(1);
+            this.runtime.process.terminateWithError(100);
     }
 
     private static parseRuntimeArguments(args: string[]): RuntimeRunnerArguments

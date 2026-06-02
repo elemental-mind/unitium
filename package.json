@@ -42,6 +42,7 @@
     "test:node": "tsx ./source/cli.ts ./source",
     "test:bun": "bun ./source/cli.ts ./source",
     "test:deno": "deno run --allow-read ./source/cli.ts ./source",
+    "test:matrix": "tsx ./tests/all-environments.ts",
     "serve": "vite"
   },
   "devDependencies": {
