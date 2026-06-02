@@ -96,7 +96,7 @@ export abstract class SoftwareSpecification extends Serializable
         return this.testSuites.flatMap(suite => suite.tests);
     }
 
-    public async load(entryPointsOrModuleURLs: string[] = [])
+    public async load(entryPointsOrModuleURLs: string[] = ["."])
     {
         for (const moduleURL of await this.resolveTestModuleURLs(entryPointsOrModuleURLs))
             this.testModules.push(new TestModule(moduleURL, await import(/*@vite-ignore*/moduleURL)));

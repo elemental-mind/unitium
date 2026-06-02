@@ -11,7 +11,7 @@ export type { CliRuntimeAdapter };
 export class RuntimeEnvironment
 {
     static async resolveRuntimeModules(): Promise<{
-        AppSpecification: new () => SoftwareSpecification;
+        AppSpecification: new (workingDirectory?: string) => SoftwareSpecification;
         ProcessEnvironment: CliRuntimeAdapter;
     }>
     {

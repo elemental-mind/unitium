@@ -1,5 +1,7 @@
 // @ts-ignore TypeScript's Node resolver does not understand Deno JSR imports.
 import * as path from "jsr:@std/path";
+// @ts-ignore TypeScript's Node resolver does not understand Deno npm imports.
+import ignore from "npm:ignore";
 import type { CliRuntimeAdapter } from "../api.ts";
 import { FileBasedAppSpecification } from "../api.ts";
 
@@ -15,6 +17,7 @@ type DenoRuntime = {
         isFile: boolean;
         isDirectory: boolean;
     }>;
+    readTextFile(path: string): Promise<string>;
     exit(code?: number): never;
 };
 
@@ -30,16 +33,49 @@ const DenoEnvironment: CliRuntimeAdapter = {
 
 class DenoAppSpecification extends FileBasedAppSpecification
 {
+    private gitIgnore = ignore();
+    private workingDirectory: string;
+
+    constructor(workingDirectory = DenoEnvironment.process.workingDirectory)
+    {
+        super();
+        this.workingDirectory = workingDirectory;
+    }
+
+    async load(entryPointsOrModuleURLs: string[] = ["."])
+    {
+        await this.loadGitIgnore();
+        await super.load(entryPointsOrModuleURLs);
+    }
+
     async* streamNormalizedFileNamesRecursive(fileOrFolderPath: string): AsyncIterable<string>
     {
-        const absolutePath = path.resolve(fileOrFolderPath);
+        const absolutePath = path.resolve(this.workingDirectory, fileOrFolderPath);
         const stats = await deno.stat(absolutePath);
 
         if (stats.isFile)
-            yield this.normalizeFileURLPath(absolutePath);
+        {
+            if (!this.isIgnored(absolutePath))
+                yield this.normalizeFileURLPath(absolutePath);
+        }
         else if (stats.isDirectory)
+        {
+            if (this.isIgnored(absolutePath, true))
+                return;
+
             for await (const entry of deno.readDir(absolutePath))
                 yield* this.streamNormalizedFileNamesRecursive(path.join(absolutePath, entry.name));
+        }
+    }
+
+    private isIgnored(filePath: string, directory = false)
+    {
+        const relativePath = path.relative(this.workingDirectory, filePath).replaceAll("\\", "/");
+
+        if (relativePath === "" || relativePath.startsWith("../") || path.isAbsolute(relativePath))
+            return false;
+
+        return this.gitIgnore.ignores(directory ? `${relativePath}/` : relativePath);
     }
 
     private normalizeFileURLPath(filePath: string)
@@ -50,6 +86,19 @@ class DenoAppSpecification extends FileBasedAppSpecification
             return `/${normalizedPath}`;
 
         return normalizedPath;
+    }
+
+    private async loadGitIgnore()
+    {
+        try
+        {
+            this.gitIgnore.add(await deno.readTextFile(path.join(this.workingDirectory, ".gitignore")));
+        }
+        catch (error: any)
+        {
+            if (error.name !== "NotFound")
+                throw error;
+        }
     }
 }
 

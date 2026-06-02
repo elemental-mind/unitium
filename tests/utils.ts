@@ -1,7 +1,7 @@
 import { SoftwareSpecification, TestRunner } from "../source/core/unitium.ts";
 
 type RuntimeModule = {
-    AppSpecification: new () => SoftwareSpecification;
+    AppSpecification: new (workingDirectory?: string) => SoftwareSpecification;
 };
 
 async function getRuntimeModule(): Promise<RuntimeModule>

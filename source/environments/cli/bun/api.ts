@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import ignore from "ignore";
 import path from "path";
 import type { CliRuntimeAdapter } from "../api.ts";
 import { FileBasedAppSpecification } from "../api.ts";
@@ -13,16 +14,49 @@ const BunEnvironment: CliRuntimeAdapter = {
 
 class BunAppSpecification extends FileBasedAppSpecification
 {
+    private gitIgnore = ignore();
+    private workingDirectory: string;
+
+    constructor(workingDirectory = BunEnvironment.process.workingDirectory)
+    {
+        super();
+        this.workingDirectory = workingDirectory;
+    }
+
+    async load(entryPointsOrModuleURLs: string[] = ["."])
+    {
+        await this.loadGitIgnore();
+        await super.load(entryPointsOrModuleURLs);
+    }
+
     async* streamNormalizedFileNamesRecursive(fileOrFolderPath: string): AsyncIterable<string>
     {
-        const absolutePath = path.resolve(fileOrFolderPath);
+        const absolutePath = path.resolve(this.workingDirectory, fileOrFolderPath);
         const stats = await fs.stat(absolutePath);
 
         if (stats.isFile())
-            yield this.normalizeFileURLPath(absolutePath);
+        {
+            if (!this.isIgnored(absolutePath))
+                yield this.normalizeFileURLPath(absolutePath);
+        }
         else if (stats.isDirectory())
+        {
+            if (this.isIgnored(absolutePath, true))
+                return;
+
             for (const entry of await fs.readdir(absolutePath, { withFileTypes: true }))
                 yield* this.streamNormalizedFileNamesRecursive(path.join(absolutePath, entry.name));
+        }
+    }
+
+    private isIgnored(filePath: string, directory = false)
+    {
+        const relativePath = path.relative(this.workingDirectory, filePath).replaceAll("\\", "/");
+
+        if (relativePath === "" || relativePath.startsWith("../") || path.isAbsolute(relativePath))
+            return false;
+
+        return this.gitIgnore.ignores(directory ? `${relativePath}/` : relativePath);
     }
 
     private normalizeFileURLPath(filePath: string)
@@ -33,6 +67,19 @@ class BunAppSpecification extends FileBasedAppSpecification
             return `/${normalizedPath}`;
 
         return normalizedPath;
+    }
+
+    private async loadGitIgnore()
+    {
+        try
+        {
+            this.gitIgnore.add(await fs.readFile(path.join(this.workingDirectory, ".gitignore"), "utf8"));
+        }
+        catch (error: any)
+        {
+            if (error.code !== "ENOENT")
+                throw error;
+        }
     }
 }
 
