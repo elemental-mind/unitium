@@ -340,16 +340,50 @@ export class TestError extends Serializable
         this.error = error;
         Object.assign(this, error);
         this.name = error.name;
-        const errorPosition = error.stack!.split("\n    at")[1].trim();
-        const fileParseResults = /\((.*?)\:(\d+)\:(\d+)\)/.exec(errorPosition)!;
-        this.sourceFile = fileParseResults[1];
-        this.fileLocation = { line: Number(fileParseResults[2]), column: Number(fileParseResults[3]) };
+
+        const stackLocation = parseStackLocation(error.stack);
+        this.sourceFile = stackLocation?.sourceFile ?? "";
+        this.fileLocation = stackLocation?.fileLocation ?? { line: 0, column: 0 };
     }
 
     serialize()
     {
         return Object.assign({}, this);
     }
+}
+
+function parseStackLocation(stack?: string)
+{
+    if (!stack)
+        return undefined;
+
+    for (const line of stack.split("\n"))
+    {
+        const frame = line.trim();
+
+        if (!frame.startsWith("at "))
+            continue;
+
+        const frameBody = frame.slice(3);
+        const location = frameBody.endsWith(")") && frameBody.includes("(")
+            ? frameBody.slice(frameBody.lastIndexOf("(") + 1, -1)
+            : frameBody;
+
+        const locationParts = /^(.*):(\d+):(\d+)$/.exec(location);
+
+        if (!locationParts || locationParts[1] === "native" || locationParts[1] === "unknown location")
+            continue;
+
+        return {
+            sourceFile: locationParts[1],
+            fileLocation: {
+                line: Number(locationParts[2]),
+                column: Number(locationParts[3])
+            }
+        };
+    }
+
+    return undefined;
 }
 
 function camelToNormal(camelCaseString: string)
