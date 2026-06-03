@@ -1,5 +1,5 @@
-import { Observable } from "../unitium.ts";
-import type { SoftwareSpecification, TestModule, TestSuite, Test } from "../unitium.ts";
+import { Observable } from "../core/unitium.ts";
+import type { SoftwareSpecification, TestModule, TestSuite, Test } from "../core/unitium.ts";
 
 export abstract class BaseReporter
 {

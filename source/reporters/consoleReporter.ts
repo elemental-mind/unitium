@@ -1,5 +1,5 @@
 import { BaseReporter } from "./base.ts";
-import { TestModule, TestSuite, Test, TestError } from "../unitium.ts";
+import { TestModule, TestSuite, Test, TestError } from "../core/unitium.ts";
 
 export class ConsoleReporter extends BaseReporter
 {
@@ -43,10 +43,10 @@ export class ConsoleReporter extends BaseReporter
     printTestResults(test: Test)
     {
         if (!test.error)
-            console.log("✔️    " + test.name);
+            console.log("🟢    " + test.name);
         else
         {
-            console.group("❌   " + test.name);
+            console.group("🔴   " + test.name);
             this.printError(test.error);
             console.groupEnd();
         }

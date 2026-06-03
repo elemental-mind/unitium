@@ -31,7 +31,7 @@ async function deleteOldDistFolder()
 async function testProject()
 {
     try {
-        execSync('node ./source/node/index.ts ./source', { stdio: 'inherit' });
+        execSync('npx tsx ./source/cli.ts ./source', { stdio: 'inherit' });
     } catch (error) {
         console.log("Release aborted due to test error.");
         process.exit(1);
@@ -55,7 +55,7 @@ async function compileProject()
 async function cleanupDistributionFolder()
 {
     await removeTestFiles("distribution");
-    await fs.rm("distribution/tests", { recursive: true });
+    await fs.rm("distribution/tests", { recursive: true, force: true });
 }
 
 async function removeTestFiles(folder: string)
@@ -76,7 +76,7 @@ async function removeTestFiles(folder: string)
 
 async function copyCSSFiles()
 {
-    await fs.copyFile("source/browser/style.css", "distribution/browser/style.css");
+    await fs.copyFile("source/environments/browser/style.css", "distribution/environments/browser/style.css");
 }
 
 prepareRelease();

@@ -1,7 +1,7 @@
 {
   "name": "unitium",
   "version": "0.6.0",
-  "description": "Class based unit testing for node & the browser",
+  "description": "Class based unit testing for Node, Bun, Deno & the browser",
   "keywords": [
     "test-runner",
     "unit-testing",
@@ -9,17 +9,20 @@
     "typescript"
   ],
   "type": "module",
-  "types": "./distribution/index.d.ts",
-  "module": "./distribution/index.js",
-  "main": "./distribution/index.js",
+  "types": "./distribution/test-suite-api.d.ts",
+  "module": "./distribution/test-suite-api.js",
+  "main": "./distribution/test-suite-api.js",
   "exports": {
     ".": {
-      "types": "./distribution/index.d.ts",
-      "import": "./distribution/index.js"
+      "types": "./distribution/test-suite-api.d.ts",
+      "import": "./distribution/test-suite-api.js"
     },
-    "./browser/*": "./distribution/browser/*",
-    "./node-api": "./distribution/node/api.js",
-    "./browser-api": "./distribution/browser/api.js"
+    "./runner-api": {
+      "types": "./distribution/runner-api.d.ts",
+      "import": "./distribution/runner-api.js"
+    },
+    "./browser/*": "./distribution/environments/browser/*",
+    "./browser-api": "./distribution/environments/browser/api.js"
   },
   "author": "Magnus Meseck",
   "license": "MIT",
@@ -27,24 +30,29 @@
     "node": ">=22.18"
   },
   "bin": {
-    "unitium": "/distribution/node/index.js",
-    "unitium-tsx": "/distribution/node/exec-tsx.js",
-    "unitium-ts-node": "/distribution/node/exec-ts-node.js"
+    "unitium": "/distribution/cli.js",
+    "unitium-tsx": "/distribution/environments/cli/node/exec-tsx.js",
+    "unitium-ts-node": "/distribution/environments/cli/node/exec-ts-node.js"
   },
   "scripts": {
     "dry-update": "node npm-release.ts",
     "patch": "node npm-release.ts && npm version patch && git push && npm publish",
     "release": "node npm-release.ts && npm version minor && git push && npm publish",
-    "test": "node ./source/node/index.ts ./source",
+    "test": "npm run test:node",
+    "test:node": "tsx ./source/cli.ts ./source",
+    "test:bun": "bun ./source/cli.ts ./source",
+    "test:deno": "deno run --allow-read ./source/cli.ts ./source",
+    "test:matrix": "tsx ./tests/all-environments.ts",
     "serve": "vite"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
-    "typescript": "^5.8.0",
-    "uvu": "^0.5.6"
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.0"
   },
   "dependencies": {
-    "deferium": "^0.1.1"
+    "deferium": "^0.1.1",
+    "ignore": "^7.0.5"
   },
   "repository": {
     "type": "git",
