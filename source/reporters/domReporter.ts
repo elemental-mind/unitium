@@ -70,7 +70,7 @@ export class DOMReporter extends EventBasedReporter
         this.testStatusElements.set(test, statusElement);
     }
 
-    onTestStart(test: Test)
+    onTestStart(test: Test): void
     {
         const detailsElement = this.testDetailsElements.get(test);
         const statusElement = this.testStatusElements.get(test);
@@ -82,7 +82,7 @@ export class DOMReporter extends EventBasedReporter
         }
     }
 
-    onTestEnd(test: Test)
+    onTestEnd(test: Test): void
     {
         const detailsElement = this.testDetailsElements.get(test);
         const statusElement = this.testStatusElements.get(test);

@@ -2,13 +2,59 @@ import { Awaitable } from "deferium";
 import type { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.ts";
 import type { BaseReporter } from "../reporters/base.ts";
 
+export type TestRunStatus = "None" | "Fail" | "Pass";
+
+export type SerializedSoftwareSpecification = {
+    modules: SerializedTestModule[];
+};
+
+export type SerializedTestModule = {
+    path: string;
+    suites: SerializedTestSuite[];
+};
+
+export type SerializedTestSuite = {
+    class: string;
+    name: string;
+    tests: SerializedTest[];
+};
+
+export type SerializedTest = {
+    method: string;
+    name: string;
+    description?: string;
+    status: TestRunStatus;
+    error?: TestError;
+};
+
+export type SerializedTestError = {
+    error: Error;
+    actual: any;
+    expected: any;
+    name: string;
+    message: string;
+    stack: string;
+    sourceFile: string;
+    fileLocation: SourceFileLocation;
+};
+
+export type SourceFileLocation = {
+    line: number;
+    column: number;
+};
+
+type ParsedStackLocation = {
+    sourceFile: string;
+    fileLocation: SourceFileLocation;
+};
+
 export class TestRunner extends Awaitable
 {
     public specification: SoftwareSpecification;
     public reporters?: BaseReporter[];
     public options: TestRunnerOptions;
 
-    testingCompleted = new Awaitable();
+    testingCompleted: Awaitable<void> = new Awaitable();
     constructor(
         loadedSpecification: SoftwareSpecification,
         reporters?: BaseReporter[],
@@ -23,7 +69,7 @@ export class TestRunner extends Awaitable
         this.options = options;
     }
 
-    async run()
+    async run(): Promise<void>
     {
         const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined);
 
@@ -77,8 +123,8 @@ abstract class Serializable
 
 export abstract class Observable extends Serializable
 {
-    runStarted = new Awaitable();
-    runCompleted = new Awaitable();
+    runStarted: Awaitable<void> = new Awaitable();
+    runCompleted: Awaitable<void> = new Awaitable();
 }
 
 export abstract class SoftwareSpecification extends Serializable
@@ -86,17 +132,17 @@ export abstract class SoftwareSpecification extends Serializable
     public testModules: TestModule[] = [];
     public isLoaded = false;
 
-    get testSuites()
+    get testSuites(): TestSuite[]
     {
         return this.testModules.flatMap(module => module.testSuites);
     }
 
-    get tests()
+    get tests(): Test[]
     {
         return this.testSuites.flatMap(suite => suite.tests);
     }
 
-    public async load(entryPointsOrModuleURLs: string[] = ["."])
+    public async load(entryPointsOrModuleURLs: string[] = ["."]): Promise<void>
     {
         for (const moduleURL of await this.resolveTestModuleURLs(entryPointsOrModuleURLs))
             this.testModules.push(new TestModule(moduleURL, await import(/*@vite-ignore*/moduleURL)));
@@ -106,7 +152,7 @@ export abstract class SoftwareSpecification extends Serializable
 
     abstract resolveTestModuleURLs(entryPoints: string[]): Promise<string[]>;
 
-    serialize()
+    serialize(): SerializedSoftwareSpecification
     {
         return {
             modules: this.testModules.map(module => module.serialize())
@@ -116,7 +162,7 @@ export abstract class SoftwareSpecification extends Serializable
 
 export class URLSetSpecification extends SoftwareSpecification
 {
-    async resolveTestModuleURLs(moduleURLs: string[])
+    async resolveTestModuleURLs(moduleURLs: string[]): Promise<string[]>
     {
         return moduleURLs;
     }
@@ -127,7 +173,7 @@ export class TestModule extends Observable
     public path: string;
     testSuites: TestSuite[] = [];
 
-    get tests()
+    get tests(): Test[]
     {
         return this.testSuites.flatMap(suite => suite.tests);
     }
@@ -144,7 +190,7 @@ export class TestModule extends Observable
                 this.testSuites.push(new TestSuite(this, module[key]));
     }
 
-    async run()
+    async run(): Promise<void>
     {
         this.runStarted.resolve();
 
@@ -157,7 +203,7 @@ export class TestModule extends Observable
         this.runCompleted.resolve();
     }
 
-    serialize()
+    serialize(): SerializedTestModule
     {
         return {
             path: this.path,
@@ -217,12 +263,12 @@ export class TestSuite extends Observable
                 this.tests.push(new Test(this, testFunctionName));
     }
 
-    static isValid(constructorFct: any)
+    static isValid(constructorFct: any): constructorFct is TestSuiteConstructor
     {
         return typeof constructorFct === "function" && constructorFct.prototype;
     }
 
-    async run(debugTest?: Test)
+    async run(debugTest?: Test): Promise<void>
     {
         this.runStarted.resolve();
 
@@ -255,7 +301,7 @@ export class TestSuite extends Observable
         this.runCompleted.resolve();
     }
 
-    async runTestParallel(test: Test)
+    async runTestParallel(test: Test): Promise<void>
     {
         const testInstance = new this.testClassConstructor();
         await testInstance.onBeforeEach?.(test);
@@ -263,7 +309,7 @@ export class TestSuite extends Observable
         await testInstance.onAfterEach?.(test);
     }
 
-    serialize()
+    serialize(): SerializedTestSuite
     {
         return {
             class: this.className,
@@ -290,12 +336,12 @@ export class Test extends Observable
         this.testFunctionName = testFunctionName;
     }
 
-    get name()
+    get name(): string
     {
         return titleCase(camelToNormal(this.testFunctionName));
     }
 
-    async run(testFixture: any)
+    async run(testFixture: any): Promise<void>
     {
         this.runStarted.resolve();
 
@@ -311,7 +357,7 @@ export class Test extends Observable
         this.runCompleted.resolve();
     }
 
-    serialize()
+    serialize(): SerializedTest
     {
         let status;
         if (!this.runCompleted.isResolved)
@@ -338,10 +384,7 @@ export class TestError extends Serializable
     public message!: string;
     public stack!: string;
     public sourceFile: string;
-    public fileLocation: {
-        line: number,
-        column: number;
-    };
+    public fileLocation: SourceFileLocation;
 
     constructor(error: Error)
     {
@@ -355,13 +398,22 @@ export class TestError extends Serializable
         this.fileLocation = stackLocation?.fileLocation ?? { line: 0, column: 0 };
     }
 
-    serialize()
+    serialize(): SerializedTestError
     {
-        return Object.assign({}, this);
+        return {
+            error: this.error,
+            actual: this.actual,
+            expected: this.expected,
+            name: this.name,
+            message: this.message,
+            stack: this.stack,
+            sourceFile: this.sourceFile,
+            fileLocation: this.fileLocation
+        };
     }
 }
 
-function parseStackLocation(stack?: string)
+function parseStackLocation(stack?: string): ParsedStackLocation | undefined
 {
     if (!stack)
         return undefined;
@@ -395,17 +447,17 @@ function parseStackLocation(stack?: string)
     return undefined;
 }
 
-function camelToNormal(camelCaseString: string)
+function camelToNormal(camelCaseString: string): string
 {
     return camelCaseString.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
-function titleCase(text: string)
+function titleCase(text: string): string
 {
     return text[0].toUpperCase() + text.slice(1).toLowerCase();
 }
 
-function capitalCase(text: string)
+function capitalCase(text: string): string
 {
     return text.split(" ").map(s => titleCase(s)).join(" ");
 }

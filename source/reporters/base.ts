@@ -10,8 +10,8 @@ export abstract class BaseReporter
         this.specification = specification;
     }
 
-    onTestRunStart() { };
-    onTestRunEnd() { };
+    onTestRunStart(): void { };
+    onTestRunEnd(): void { };
 }
 
 export abstract class EventBasedReporter extends BaseReporter
@@ -32,7 +32,7 @@ export abstract class EventBasedReporter extends BaseReporter
         }
     }
 
-    private async subscribe(eventSource: Observable, onStartHandler: Function, onEndHandler: Function)
+    private async subscribe(eventSource: Observable, onStartHandler: Function, onEndHandler: Function): Promise<void>
     {
         await eventSource.runStarted;
         const onStartReturn = onStartHandler(eventSource);
@@ -40,10 +40,10 @@ export abstract class EventBasedReporter extends BaseReporter
         onEndHandler(eventSource, onStartReturn);
     }
 
-    onModuleStart(module: TestModule) { };
-    onModuleEnd(module: TestModule) { };
-    onSuiteStart(suite: TestSuite) { };
-    onSuiteEnd<T>(suite: TestSuite) { };
-    onTestStart(test: Test) { };
-    onTestEnd<T>(test: Test) { };
+    onModuleStart(module: TestModule): void { };
+    onModuleEnd(module: TestModule): void { };
+    onSuiteStart(suite: TestSuite): void { };
+    onSuiteEnd(suite: TestSuite): void { };
+    onTestStart(test: Test): void { };
+    onTestEnd(test: Test): void { };
 }

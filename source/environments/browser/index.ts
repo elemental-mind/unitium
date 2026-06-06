@@ -4,7 +4,7 @@ import { TestRunner, SoftwareSpecification } from "../../core/unitium.ts";
 
 export class BrowserAppSpecification extends SoftwareSpecification
 {
-    async resolveTestModuleURLs()
+    async resolveTestModuleURLs(): Promise<string[]>
     {
         const modules = [];
 
@@ -15,7 +15,7 @@ export class BrowserAppSpecification extends SoftwareSpecification
     }
 }
 
-async function runTests()
+async function runTests(): Promise<void>
 {
     const spec = new BrowserAppSpecification();
     await spec.load();

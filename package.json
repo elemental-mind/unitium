@@ -13,7 +13,7 @@
     "build:node": "tsx ./build-npm-package.ts",
     "build:deno": "tsx ./build-jsr-package.ts",
     "publish:npm": "npm run build:node && npm publish ./distribution/node",
-    "publish:jsr": "npm run build:deno && cd distribution/deno && deno publish --allow-slow-types",
+    "publish:jsr": "npm run build:deno && cd distribution/deno && deno publish",
     "test:node": "npm run build:node && tsx ./distribution/node/environments/cli/node/exec-tsx.js ./source",
     "test:deno": "npm run build:deno && deno run --config ./distribution/deno/deno.json --no-lock --allow-read ./distribution/deno/cli.ts ./source",
     "test:bun": "npm run build:node && bun ./distribution/node/cli.js ./source",

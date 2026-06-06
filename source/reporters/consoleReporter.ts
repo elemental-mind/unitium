@@ -3,12 +3,12 @@ import { TestModule, TestSuite, Test, TestError } from "../core/unitium.ts";
 
 export class ConsoleReporter extends BaseReporter
 {
-    onTestRunStart()
+    onTestRunStart(): void
     {
         console.log("Testing started.");
     }
 
-    onTestRunEnd()
+    onTestRunEnd(): void
     {
         console.log("Testing finished.");
 
@@ -24,13 +24,13 @@ export class ConsoleReporter extends BaseReporter
             this.printModuleResults(module);
     }
 
-    printModuleResults(module: TestModule)
+    printModuleResults(module: TestModule): void
     {
         for (const suite of module.testSuites)
             this.printSuiteResults(suite);
     }
 
-    printSuiteResults(suite: TestSuite)
+    printSuiteResults(suite: TestSuite): void
     {
         console.group(suite.name);
 
@@ -40,7 +40,7 @@ export class ConsoleReporter extends BaseReporter
         console.groupEnd();
     }
 
-    printTestResults(test: Test)
+    printTestResults(test: Test): void
     {
         if (!test.error)
             console.log("🟢    " + test.name);
@@ -52,7 +52,7 @@ export class ConsoleReporter extends BaseReporter
         }
     }
 
-    printError(error: TestError)
+    printError(error: TestError): void
     {
         console.log(`${error.name}: ${error.message || "unkown"} --> "${error.sourceFile}:${error.fileLocation.line}:${error.fileLocation.column}"`);
     }

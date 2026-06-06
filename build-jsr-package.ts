@@ -15,7 +15,7 @@ type DenoConfigJSON = {
 const distributionFolder = "distribution";
 const denoDistributionFolder = path.join(distributionFolder, "deno");
 const jsrDenoTemplatePath = path.join("configuration", "jsr-deno.json");
-const jsrPublishCommand = "deno publish --allow-slow-types";
+const jsrPublishCommand = "deno publish";
 const jsrValidationCommand = `${jsrPublishCommand} --allow-dirty --dry-run`;
 
 async function prepareJSRRelease()
