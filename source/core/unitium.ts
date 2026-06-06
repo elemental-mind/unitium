@@ -1,6 +1,7 @@
 import { Awaitable } from "deferium";
 import type { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.ts";
 import type { BaseReporter } from "../reporters/base.ts";
+import { unitiumDebugTestMetadataKey, type UnitiumDebuggableMethod } from "./decorator-metadata.ts";
 
 export type TestRunStatus = "None" | "Fail" | "Pass";
 
@@ -260,7 +261,16 @@ export class TestSuite extends Observable
 
         for (const testFunctionName of testFunctionNames)
             if (!noTestNames.includes(testFunctionName) && typeof this.testClassConstructor.prototype[testFunctionName] === "function")
+            {
+                const testFunction = this.testClassConstructor.prototype[testFunctionName] as UnitiumDebuggableMethod;
+                if (testFunction[unitiumDebugTestMetadataKey] === testFunctionName)
+                {
+                    this.testClassConstructor.prototype.__meta = this.testClassConstructor.prototype.__meta ?? {};
+                    this.testClassConstructor.prototype.__meta.debugTestName = testFunctionName;
+                }
+
                 this.tests.push(new Test(this, testFunctionName));
+            }
     }
 
     static isValid(constructorFct: any): constructorFct is TestSuiteConstructor

@@ -10,9 +10,7 @@
       "dom.iterable",
       "esnext"
     ],
-    "noImplicitOverride": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "noImplicitOverride": false
   },
   "exports": {
     ".": "./test-suite-api.ts",

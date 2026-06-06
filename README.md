@@ -232,6 +232,28 @@ Use the command that matches the runtime that will execute your tests:
 
 The plain `unitium` command runs JavaScript directly. Node supports native TypeScript execution in newer versions, but features that require type transformations are not supported by native type stripping. For decorators and other non-strippable TypeScript features, prefer `unitium-tsx` or `unitium-ts-node`.
 
+## Decorators
+
+Unitium exports standard TC39 decorators from its main test-suite API:
+
+```typescript
+import { Debug, Sequential } from "unitium";
+```
+
+Use `@Sequential` on a test suite class when all tests in that suite should share one instance and execute in declaration order. Use `@Debug` on a test method when you want Unitium to run only that test, or that test and the tests before it when the suite is sequential.
+
+Unitium decorators use the current standard decorator form supported by TypeScript 5 and Deno. They do not require `experimentalDecorators` or `emitDecoratorMetadata` in your TypeScript config.
+
+Runtime support depends on how your tests are loaded:
+
+| Runtime | Decorator support |
+| --- | --- |
+| `unitium-tsx` | Supported through TypeScript transformation. |
+| `unitium-ts-node` | Supported when your TypeScript toolchain is configured for standard decorators. |
+| `deno x --allow-read unitium` | Supported in Deno 1.40 and newer for TypeScript, JSX, and TSX files. |
+| `unitium` with JavaScript files | Supported only after your code has been compiled to JavaScript. |
+| Native Node TypeScript execution | Not supported yet because Node's type stripping does not transform decorators. |
+
 All CLI runtime commands accept the same flags and file or folder arguments:
 
 ```
