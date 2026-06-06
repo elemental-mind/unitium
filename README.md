@@ -1,6 +1,6 @@
 # Organize your unit tests in classes
 ## Get started straight away
-[Node](#runtime-commands) | [Deno](#runtime-commands) | [Bun](#runtime-commands) | [Browser](#use-browser)
+[Test authoring and rules](#test-authoring-and-rules) | [CLI](#use-cli-runtimes) | [Browser](#use-browser) | [Runner API](#runner-api)
 ## Introduction
 Unitium is a super simple test runner for Node, Bun, Deno, and the browser that will allow you to create test suites with classes:
 
@@ -51,16 +51,7 @@ Basic Example Test Suite
 - Every test run will be served a "fresh" class instance - its constructor will be run before every member function call.
     - If you do not desire this behaviour, decorate your class with the `@Sequential` decorator. The class will then preserve its state between function calls. Test/functions will be called in order of appearance in the class.
 
-<a id="use-cli-runtimes"></a>
-
-# CLI usage
-
-## Installation
-
-Install from npm:
-```
-npm install --save-dev unitium
-```
+# Test authoring and rules
 
 ## Create test files
 ### Name your files
@@ -108,7 +99,7 @@ export class TestSuite         // <-- "export" test suites
     }
 }
 ```
-It's important to note that tests within a `test suite` are run *sequentially* even if they are `async` tests. That is to say that within a test suite no 2 tests are run in parallel to avoid async issues when variables that are shared between tests are used.
+It's important to note that tests within a `test suite` are run *paralelly* by default, but each method is run *independent* of the others with a *fresh instance of the class* - which also implies that the constructor is run for each test method. You can thus use the constructor for shared work/setup between indivudal tests.
 
 Multiple `test suites`, however, are run *asynchronously/in parallel*. That means that if there are multiple `test suites` in a file with `async` tests, these tests may execute along each other, but still with only one test running per `test suite`.
 
@@ -189,6 +180,80 @@ class DBTest
 }
 ```
 
+## Decorators
+
+Unitium exports standard TC39 decorators from its main test-suite API:
+
+```typescript
+import { Debug, Sequential } from "unitium";
+```
+
+Use `@Sequential` on a test suite class when all tests in that suite should share one instance and execute in declaration order. Use `@Debug` on a test method when you want Unitium to run only that test, or that test and the tests before it when the suite is sequential.
+
+Unitium decorators use the current standard decorator form supported by TypeScript 5 and Deno. They do not require `experimentalDecorators` or `emitDecoratorMetadata` in your TypeScript config.
+
+Runtime support depends on how your tests are loaded:
+
+| Runtime | Decorator support |
+| --- | --- |
+| `unitium-tsx` | Supported through TypeScript transformation. |
+| `unitium-ts-node` | Supported when your TypeScript toolchain is configured for standard decorators. |
+| `deno x --allow-read jsr:@elemental/unitium/cli` | Supported in Deno 1.40 and newer for TypeScript, JSX, and TSX files. |
+| `unitium` with JavaScript files | Supported only after your code has been compiled to JavaScript. |
+| Native Node TypeScript execution | Not supported yet because Node's type stripping does not transform decorators. |
+
+### Debugging tests
+
+In order to debug tests or underlying programs during development Unitium checks whether there is any test decorated with the `@Debug` decorator on a test suite's member method. If this is the case all other test will be discarded for this test runner run and only this test will be executed.
+
+```typescript
+class TestSuite
+{
+    testThatWillNotBeRun()
+    {
+        //this test will not be run as it is not decorated with @Debug
+    }
+
+    @Debug
+    testThatWillBeDebugged()
+    {
+        //this test will be run
+    }
+}
+```
+
+If the test is in a sequential test suite, though, all tests leading up to the debugged test will be executed as they are assumed to alter the state of the test suite:
+
+```typescript
+@Sequential
+class TestSuite
+{
+    testThatWillBeRun() {}
+    testThatWillBeRunAsWell() {}
+
+    @Debug
+    testThatWillBeDebugged() {}
+
+    testThatWillNotBeRun(){}
+}
+```
+
+<a id="use-cli-runtimes"></a>
+
+# Test invocation/running/control via CLI
+
+## Installation
+
+Install from npm:
+```
+npm install --save-dev unitium
+```
+
+For Deno, run Unitium directly from JSR:
+```
+deno x --allow-read jsr:@elemental/unitium/cli
+```
+
 ## Run test runner
 
 Once you have installed Unitium and written your tests it's time to test:
@@ -228,44 +293,55 @@ Use the command that matches the runtime that will execute your tests:
 | Node with TypeScript | `npx unitium-tsx` |
 | Node with JavaScript | `npx unitium` |
 | Bun | `bun x unitium` |
-| Deno | `deno x --allow-read unitium` |
+| Deno | `deno x --allow-read jsr:@elemental/unitium/cli` |
 
 The plain `unitium` command runs JavaScript directly. Node supports native TypeScript execution in newer versions, but features that require type transformations are not supported by native type stripping. For decorators and other non-strippable TypeScript features, prefer `unitium-tsx` or `unitium-ts-node`.
 
-## Decorators
-
-Unitium exports standard TC39 decorators from its main test-suite API:
-
-```typescript
-import { Debug, Sequential } from "unitium";
-```
-
-Use `@Sequential` on a test suite class when all tests in that suite should share one instance and execute in declaration order. Use `@Debug` on a test method when you want Unitium to run only that test, or that test and the tests before it when the suite is sequential.
-
-Unitium decorators use the current standard decorator form supported by TypeScript 5 and Deno. They do not require `experimentalDecorators` or `emitDecoratorMetadata` in your TypeScript config.
-
-Runtime support depends on how your tests are loaded:
-
-| Runtime | Decorator support |
-| --- | --- |
-| `unitium-tsx` | Supported through TypeScript transformation. |
-| `unitium-ts-node` | Supported when your TypeScript toolchain is configured for standard decorators. |
-| `deno x --allow-read unitium` | Supported in Deno 1.40 and newer for TypeScript, JSX, and TSX files. |
-| `unitium` with JavaScript files | Supported only after your code has been compiled to JavaScript. |
-| Native Node TypeScript execution | Not supported yet because Node's type stripping does not transform decorators. |
+Deno should use Unitium's JSR package instead of the npm package runner. Running the npm package through `deno x unitium` puts Deno in npm compatibility mode, which can fail when the package uses `jsr:` imports.
 
 All CLI runtime commands accept the same flags and file or folder arguments:
 
 ```
 npx unitium-tsx --json ./src ./tests/example.test.ts
 bun x unitium --silent ./src
-deno x --allow-read unitium ./src
+deno x --allow-read jsr:@elemental/unitium/cli ./src
 ```
 
-`deno x` fetches and runs Unitium on demand, so no separate `deno install` step is needed. Bun's package runner is invoked as `bun x unitium`.
+`deno x` fetches and runs Unitium from JSR on demand, so no separate `deno install` step is needed. Bun's package runner is invoked as `bun x unitium`.
+
+## CLI runner reference
+
+There are three Node executables distributed with unitium:
+- `unitium`: The standard JS runner.
+- `unitium-tsx`: A TS runner that invokes `tsx`.
+- `unitium-ts-node`: A TS runner that invokes `ts-node`.
+
+Bun and Deno can execute the same CLI through their package runners:
+- `bun x unitium`
+- `deno x --allow-read jsr:@elemental/unitium/cli`
+
+Deno runs Unitium from JSR. Avoid `deno x unitium`, because that runs the npm package in npm compatibility mode and can fail to resolve `jsr:` imports. Bun uses `bun x` for its npm package-runner workflow.
+
+Node supports native TypeScript execution in recent versions, but native type stripping does not handle TypeScript features that need transformations. Use `unitium-tsx` or `unitium-ts-node` for tests that use decorators or other non-strippable TypeScript features.
+
+By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. All executables follow the same CLI schema:
+
+`unitium [flags] [files/folders]`
+
+### Available flags
+- `--json`: Instead of outputting human readable test results the output will be JSON summarizing the tests.
+- `--silent`: No output will be printed to stdout. Success or failure of tests can be determined by the process' exit code.
+
+### Specifying files/folders
+
+You can combine individual test files and folders in one command. When you provide paths, Unitium only uses those files and the test files found inside those folders:
+
+`unitium-tsx --json ./path/to/specific.test.ts ./path/to/testFolder`
+
+Specifying files or folders is recommended because Unitium currently does not respect `.gitignore` while scanning.
 <a id="use-browser"></a>
 
-# Usage for the browser
+# Test running in the browser
 
 ## Installation
 
@@ -345,16 +421,9 @@ In the above example only the last 2 elements are considered test modules as the
 
 You can not provide non-modules as test files. Also inline-modules are currently not supported. 
 
-## Coding your test classes
-Tests are organized in classes, which are referred to as `test suites`. Each public method of a class will be interpreted as a separate test. Tests may be synchronous and asynchronous.
+## Browser assertions
+Browser tests use the same exported class and public method rules described in [Test authoring and rules](#test-authoring-and-rules).
 
-A test file may have multiple `test suites`, but also other non-test-suite classes. Only classes marked with `export` will be interpreted as `test suites`.
-
-Private members (#-prepended) will not be interpreted as tests and can be used as utility functions or as data variables.
-
-
-
-### Choosing an assertion library
 As browser environments do not include a native `assert` module you need to bring your own assertions. This can be a tiny helper in your project or any assertion library that throws upon false assertions.
 Output-support may vary, but feel free to raise an issue if you like to have better support for a common library.
 
@@ -381,85 +450,11 @@ export class TestSuite         // <-- "export" test suites
     }
 }
 ```
-It's important to note that tests within a `test suite` are run *sequentially* even if they are `async` tests. That is to say that within a test suite no 2 tests are run in parallel to avoid async issues when variables that are shared between tests are used.
-
-Multiple `test suites`, however, are run *asynchronously/in parallel*. That means that if there are multiple `test suites` in a file with `async` tests, these tests may execute along each other, but still with only one test running per `test suite`.
 
 ## Running your tests
 Upon loading the page Unitium will run the tests and output its results to the output-HTML-element you provided - and upon finishing all tests - also on the console.
 
-# Debugging Tests
-
-In order to debug tests or underlying programs during development Unitium checks whether there is any test decorated with the `@Debug` decorator on a test suite's member method. If this is the case all other test will be discarded for this test runner run and only this test will be executed.
-
-```typescript
-class TestSuite
-{
-    testThatWillNotBeRun()
-    {
-        //this test will not be run as it is not decorated with @Debug
-    }
-
-    @Debug
-    testThatWillBeDebugged()
-    {
-        //this test will be run
-    }
-}
-```
-
-If the test is in a sequential test suite, though, all tests leading up to the debugged test will be executed as they are assumed to alter the state of the test suite:
-
-```typescript
-@Sequential
-class TestSuite
-{
-    testThatWillBeRun() {}
-    testThatWillBeRunAsWell() {}
-
-    @Debug
-    testThatWillBeDebugged() {}
-
-    testThatWillNotBeRun(){}
-}
-```
-
-# Programmatic Use
-
-If you would like to use Unitium programmatically, you can either use the CLI or the JS API to invoke the test runner.
-
-## CLI Runner Reference
-
-There are three Node executables distributed with unitium:
-- `unitium`: The standard JS runner.
-- `unitium-tsx`: A TS runner that invokes `tsx`.
-- `unitium-ts-node`: A TS runner that invokes `ts-node`.
-
-Bun and Deno can execute the same CLI through their package runners:
-- `bun x unitium`
-- `deno x --allow-read unitium`
-
-`deno x` fetches Unitium and its npm dependencies on demand. Bun uses `bun x` for the same package-runner workflow.
-
-Node supports native TypeScript execution in recent versions, but native type stripping does not handle TypeScript features that need transformations. Use `unitium-tsx` or `unitium-ts-node` for tests that use decorators or other non-strippable TypeScript features.
-
-By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. All executables follow the same CLI schema:
-
-`unitium [flags] [files/folders]`
-
-### Available flags
-- `--json`: Instead of outputting human readable test results the output will be JSON summarizing the tests.
-- `--silent`: No output will be printed to stdout. Success or failure of tests can be determined by the process' exit code.
-
-### Specifying Files/Folders
-
-You can combine individual test files and folders in one command. When you provide paths, Unitium only uses those files and the test files found inside those folders:
-
-`unitium-tsx --json ./path/to/specific.test.ts ./path/to/testFolder`
-
-Specifying files or folders is recommended because Unitium currently does not respect `.gitignore` while scanning.
-
-## JS Runner API
+# Runner API
 
 You can also invoke the runner programmatically through its JS API.
 
