@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../distribution/node",
+    "rootDir": "../source"
+  },
+  "include": ["../source/**/*.ts"],
+  "exclude": [
+    "../source/environments/cli/deno/**/*.ts",
+    "../source/**/*.spec.ts",
+    "../source/**/*.test.ts"
+  ]
+}

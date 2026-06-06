@@ -1,0 +1,29 @@
+{
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@elemental/unitium",
+  "version": "0.7.0",
+  "license": "MIT",
+  "compilerOptions": {
+    "lib": [
+      "deno.ns",
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "noImplicitOverride": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "exports": {
+    ".": "./test-suite-api.ts",
+    "./runner-api": "./runner-api.ts",
+    "./automation-api": "./automation-api.ts",
+    "./cli": "./cli.ts",
+    "./browser-api": "./environments/browser/api.ts"
+  },
+  "imports": {
+    "deferium": "npm:deferium@^0.1.1",
+    "ignore": "npm:ignore@^7.0.5",
+    "path": "jsr:@std/path@^1.1.5"
+  }
+}

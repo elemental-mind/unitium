@@ -1,7 +1,5 @@
-// @ts-ignore TypeScript's Node resolver does not understand Deno JSR imports.
-import * as path from "jsr:@std/path";
-// @ts-ignore TypeScript's Node resolver does not understand Deno npm imports.
-import ignore from "npm:ignore";
+import * as path from "path";
+import ignore from "ignore";
 import type { CliRuntimeAdapter } from "../api.ts";
 import { FileBasedAppSpecification } from "../api.ts";
 

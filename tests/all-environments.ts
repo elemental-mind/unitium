@@ -7,15 +7,15 @@ const run = promisify(execFile);
 const testCommands = {
     node: {
         command: "tsx",
-        args: ["./source/cli.ts", "--json", "./source"],
+        args: ["./distribution/node/environments/cli/node/exec-tsx.js", "--json", "./source"],
     },
     bun: {
         command: "bun",
-        args: ["./source/cli.ts", "--json", "./source"],
+        args: ["./distribution/node/cli.js", "--json", "./source"],
     },
     deno: {
         command: "deno",
-        args: ["run", "--allow-read", "--allow-env", "./source/cli.ts", "--json", "./source"],
+        args: ["run", "--config", "./distribution/deno/deno.json", "--no-lock", "--allow-read", "./distribution/deno/cli.ts", "--json", "./source"],
     },
 };
 
