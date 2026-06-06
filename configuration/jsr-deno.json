@@ -3,6 +3,7 @@
   "name": "@elemental/unitium",
   "version": "0.7.0",
   "license": "MIT",
+  "repository": "https://github.com/elemental-mind/unitium",
   "compilerOptions": {
     "lib": [
       "deno.ns",
