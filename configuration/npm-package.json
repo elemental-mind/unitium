@@ -30,9 +30,9 @@
     "node": ">=22.18"
   },
   "bin": {
-    "unitium": "./cli.js",
-    "unitium-tsx": "./environments/cli/node/exec-tsx.js",
-    "unitium-ts-node": "./environments/cli/node/exec-ts-node.js"
+    "unitium": "cli.js",
+    "unitium-tsx": "environments/cli/node/exec-tsx.js",
+    "unitium-ts-node": "environments/cli/node/exec-ts-node.js"
   },
   "dependencies": {
     "deferium": "^0.1.1",
