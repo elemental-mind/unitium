@@ -1,4 +1,28 @@
-// Public API for controlling test running.
+/**
+ * Programmatic runner API for loading and executing Unitium tests.
+ *
+ * Use this module when embedding Unitium in another tool, building a custom
+ * command, or wiring custom reporters around the same test model used by the
+ * CLI.
+ *
+ * @example
+ * ```ts
+ * import {
+ *   ConsoleReporter,
+ *   RuntimeEnvironment,
+ *   TestRunner,
+ * } from "@elemental/unitium/runner-api";
+ *
+ * const { AppSpecification } = await RuntimeEnvironment.resolveRuntimeModules();
+ * const spec = new AppSpecification();
+ * await spec.load(["./source"]);
+ *
+ * await new TestRunner(spec, [new ConsoleReporter(spec)]).run();
+ * ```
+ *
+ * @module runner_api
+ */
+
 import type { CliRuntimeAdapter } from "./environments/cli/api.ts";
 import type { SoftwareSpecification } from "./core/unitium.ts";
 

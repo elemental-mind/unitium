@@ -1,3 +1,27 @@
+/**
+ * Unitium command-line runner.
+ *
+ * This executable entry point discovers test files from the current working
+ * directory or provided paths, runs exported test suites, and reports results to
+ * the console or JSON output.
+ * 
+ *  * @example
+ * ```sh
+ * npx unitium
+ * ```
+ * 
+ * @example
+ * ```sh
+ * deno x --allow-read jsr:@elemental/unitium/cli ./source --json
+ * ```
+ *  *  * @example
+ * ```sh
+ * npx unitium ./source --json
+ * ```
+ *
+ * @module unitium_cli
+ */
+
 import { ConsoleReporter, JSONReporter, RuntimeEnvironment, SoftwareSpecification, TestRunner } from "./runner-api.ts";
 import type { BaseReporter, CliRuntimeAdapter } from "./runner-api.ts";
 import { cliHelpText, parseRuntimeArguments, type RuntimeRunnerOptions } from "./cli-api.ts";
