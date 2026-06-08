@@ -249,14 +249,19 @@ Install from npm:
 npm install --save-dev unitium
 ```
 
-For Deno, run Unitium directly from JSR:
+For Deno, no CLI install step is required. Run Unitium directly from JSR:
 ```
 deno x --allow-read jsr:@elemental/unitium/cli
 ```
 
+If your Deno tests import Unitium APIs such as decorators, add the JSR package to your project:
+```
+deno add jsr:@elemental/unitium
+```
+
 ## Run test runner
 
-Once you have installed Unitium and written your tests it's time to test:
+Once you have installed Unitium, or chosen the Deno JSR command, and written your tests it's time to test:
 ```
     npx unitium-tsx
 ```
@@ -282,7 +287,7 @@ You can specify certain files or folders to search for tests in:
 ```
 If you specify files or folders only these specified entities will be searched for tests.
 
-Unitium currently does not read `.gitignore`, so ignored build output, fixture folders, or generated files can still be scanned if they contain files ending in `.test.ts`, `.spec.ts`, `.test.js`, or `.spec.js`.
+Unitium reads `.gitignore` from the working directory and skips ignored files and folders while scanning.
 
 ## Runtime commands
 
@@ -295,9 +300,9 @@ Use the command that matches the runtime that will execute your tests:
 | Bun | `bun x unitium` |
 | Deno | `deno x --allow-read jsr:@elemental/unitium/cli` |
 
-The plain `unitium` command runs JavaScript directly. Node supports native TypeScript execution in newer versions, but features that require type transformations are not supported by native type stripping. For decorators and other non-strippable TypeScript features, prefer `unitium-tsx` or `unitium-ts-node`.
+The plain `unitium` command runs JavaScript directly. Node supports native TypeScript execution in newer versions, but native type stripping does not transform TypeScript syntax. If your test suites use TypeScript features that require transforms, such as decorators, prefer `unitium-tsx` or `unitium-ts-node`.
 
-Deno should use Unitium's JSR package instead of the npm package runner. Running the npm package through `deno x unitium` puts Deno in npm compatibility mode, which can fail when the package uses `jsr:` imports.
+Deno should use Unitium's JSR package entry point instead of the npm package runner. Running the npm package through `deno x unitium` puts Deno in npm compatibility mode, which can fail when the package uses `jsr:` imports.
 
 All CLI runtime commands accept the same flags and file or folder arguments:
 
@@ -307,7 +312,7 @@ bun x unitium --silent ./src
 deno x --allow-read jsr:@elemental/unitium/cli ./src
 ```
 
-`deno x` fetches and runs Unitium from JSR on demand, so no separate `deno install` step is needed. Bun's package runner is invoked as `bun x unitium`.
+`deno x --allow-read jsr:@elemental/unitium/cli` fetches and runs Unitium's CLI entry point from JSR on demand, so no separate `deno install` step is needed. The `--allow-read` permission is required so Unitium can discover test files from the current working directory or provided paths. Bun's package runner is invoked as `bun x unitium`.
 
 ## CLI runner reference
 
@@ -320,17 +325,23 @@ Bun and Deno can execute the same CLI through their package runners:
 - `bun x unitium`
 - `deno x --allow-read jsr:@elemental/unitium/cli`
 
-Deno runs Unitium from JSR. Avoid `deno x unitium`, because that runs the npm package in npm compatibility mode and can fail to resolve `jsr:` imports. Bun uses `bun x` for its npm package-runner workflow.
+Deno runs Unitium from the JSR CLI entry point with `deno x --allow-read jsr:@elemental/unitium/cli`. Avoid `deno x unitium`, because that runs the npm package in npm compatibility mode and can fail to resolve `jsr:` imports. Bun uses `bun x` for its npm package-runner workflow.
 
-Node supports native TypeScript execution in recent versions, but native type stripping does not handle TypeScript features that need transformations. Use `unitium-tsx` or `unitium-ts-node` for tests that use decorators or other non-strippable TypeScript features.
+Node supports native TypeScript execution in recent versions, but native type stripping does not transform TypeScript syntax. Use `unitium-tsx` or `unitium-ts-node` when your test suites use decorators or other TypeScript features that require transforms.
 
-By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. All executables follow the same CLI schema:
+By default these runners scan your current working directory for files ending on either `spec.ts`, `test.ts`, `spec.js` and `test.js` and run all the found tests in them. Files and folders ignored by the working directory's `.gitignore` are skipped. All executables follow the same CLI schema:
 
 `unitium [flags] [files/folders]`
 
 ### Available flags
 - `--json`: Instead of outputting human readable test results the output will be JSON summarizing the tests.
 - `--silent`: No output will be printed to stdout. Success or failure of tests can be determined by the process' exit code.
+- `--help`: Prints CLI usage and exits without running tests.
+
+### Exit codes
+- `0`: All discovered tests passed, or `--help` was shown.
+- `1`: The runtime failed before Unitium could complete the test run. E.g. a syntax error or a wrong file path.
+- `100`: Unitium completed the run and at least one test failed.
 
 ### Specifying files/folders
 
@@ -338,7 +349,7 @@ You can combine individual test files and folders in one command. When you provi
 
 `unitium-tsx --json ./path/to/specific.test.ts ./path/to/testFolder`
 
-Specifying files or folders is recommended because Unitium currently does not respect `.gitignore` while scanning.
+When no files or folders are provided, Unitium scans the current working directory.
 <a id="use-browser"></a>
 
 # Test running in the browser
