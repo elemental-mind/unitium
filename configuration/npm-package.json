@@ -1,6 +1,5 @@
 {
   "name": "unitium",
-  "version": "0.7.0",
   "description": "Class based unit testing for Node, Bun, Deno & the browser",
   "keywords": [
     "test-runner",
