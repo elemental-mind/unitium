@@ -1,15 +1,6 @@
 import { ConsoleReporter, JSONReporter, RuntimeEnvironment, SoftwareSpecification, TestRunner } from "./runner-api.ts";
 import type { BaseReporter, CliRuntimeAdapter } from "./runner-api.ts";
-
-type RuntimeRunnerOptions = {
-    silent: boolean;
-    outputJSON: boolean;
-};
-
-type RuntimeRunnerArguments = {
-    options: RuntimeRunnerOptions;
-    entryPoints: string[];
-};
+import { cliHelpText, parseRuntimeArguments, type RuntimeRunnerOptions } from "./cli-api.ts";
 
 class CLIRunner extends TestRunner
 {
@@ -25,10 +16,19 @@ class CLIRunner extends TestRunner
         this.runtime = runtime;
     }
 
-    static async initialize(): Promise<{ runner: CLIRunner; }>
+    static async initialize(): Promise<{ runner?: CLIRunner; }>
     {
         const { AppSpecification, ProcessEnvironment } = await RuntimeEnvironment.resolveRuntimeModules();
-        const { options, entryPoints } = this.parseRuntimeArguments(ProcessEnvironment.process.cliArgs);
+        const { options, entryPoints } = parseRuntimeArguments(
+            ProcessEnvironment.process.cliArgs,
+            ProcessEnvironment.process.workingDirectory
+        );
+
+        if (options.help)
+        {
+            console.log(cliHelpText);
+            return {};
+        }
 
         const spec = new AppSpecification();
         await spec.load(entryPoints);
@@ -45,17 +45,6 @@ class CLIRunner extends TestRunner
             this.runtime.process.terminateWithError(100);
     }
 
-    private static parseRuntimeArguments(args: string[]): RuntimeRunnerArguments
-    {
-        return {
-            options: {
-                silent: args.includes("--silent"),
-                outputJSON: args.includes("--json"),
-            },
-            entryPoints: args.filter(arg => !arg.startsWith("--"))
-        };
-    }
-
     private static resolveReporters(options: RuntimeRunnerOptions, spec: SoftwareSpecification): BaseReporter[]
     {
         if (options.silent)
@@ -68,4 +57,4 @@ class CLIRunner extends TestRunner
 }
 
 const { runner } = await CLIRunner.initialize();
-await runner.run();
+await runner?.run();
