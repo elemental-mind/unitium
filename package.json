@@ -14,6 +14,7 @@
     "test:deno": "npm run build:deno && deno run --config ./distribution/deno/deno.json --no-lock --allow-read ./distribution/deno/cli.ts ./source",
     "test:bun": "npm run build:node && bun ./distribution/node/cli.js ./source",
     "test:matrix": "npm run build:node && npm run build:deno && tsx ./tests/all-environments.ts",
+    "e2e:deno": "cd tests/fixtures/cli-end2end/deno && deno x jsr:@elemental/unitium/cli",
     "build:node": "tsx ./build-npm-package.ts",
     "build:deno": "tsx ./build-jsr-package.ts",
     "publish:npm": "npm run build:node && npm publish ./distribution/node",
