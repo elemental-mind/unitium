@@ -1,473 +1,540 @@
 import { Awaitable } from "deferium";
-import type { ISequentialTestSuiteMemberHooks, IParallelTestSuiteStaticHooks } from "./hooks.ts";
+import type {
+  IParallelTestSuiteStaticHooks,
+  ISequentialTestSuiteMemberHooks,
+} from "./hooks.ts";
 import type { BaseReporter } from "../reporters/base.ts";
-import { unitiumDebugTestMetadataKey, type UnitiumDebuggableMethod } from "./decorator-metadata.ts";
+import {
+  type UnitiumDebuggableMethod,
+  unitiumDebugTestMetadataKey,
+} from "./decorator-metadata.ts";
 
 export type TestRunStatus = "None" | "Fail" | "Pass";
 
 export type SerializedSoftwareSpecification = {
-    modules: SerializedTestModule[];
+  modules: SerializedTestModule[];
 };
 
 export type SerializedTestModule = {
-    path: string;
-    suites: SerializedTestSuite[];
+  path: string;
+  suites: SerializedTestSuite[];
 };
 
 export type SerializedTestSuite = {
-    class: string;
-    name: string;
-    tests: SerializedTest[];
+  class: string;
+  name: string;
+  tests: SerializedTest[];
 };
 
 export type SerializedTest = {
-    method: string;
-    name: string;
-    description?: string;
-    status: TestRunStatus;
-    error?: TestError;
+  method: string;
+  name: string;
+  description?: string;
+  status: TestRunStatus;
+  error?: TestError;
 };
 
 export type SerializedTestError = {
-    error: Error;
-    actual: any;
-    expected: any;
-    name: string;
-    message: string;
-    stack: string;
-    sourceFile: string;
-    fileLocation: SourceFileLocation;
+  error: Error;
+  actual: any;
+  expected: any;
+  name: string;
+  message: string;
+  stack: string;
+  sourceFile: string;
+  fileLocation: SourceFileLocation;
 };
 
 export type SourceFileLocation = {
-    line: number;
-    column: number;
+  line: number;
+  column: number;
 };
 
 type ParsedStackLocation = {
-    sourceFile: string;
-    fileLocation: SourceFileLocation;
+  sourceFile: string;
+  fileLocation: SourceFileLocation;
 };
 
-export class TestRunner extends Awaitable
-{
-    public specification: SoftwareSpecification;
-    public reporters?: BaseReporter[];
-    public options: TestRunnerOptions;
+/**
+ * Executes a loaded software specification and notifies configured reporters.
+ */
+export class TestRunner extends Awaitable {
+  public specification: SoftwareSpecification;
+  public reporters?: BaseReporter[];
+  public options: TestRunnerOptions;
 
-    testingCompleted: Awaitable<void> = new Awaitable();
-    constructor(
-        loadedSpecification: SoftwareSpecification,
-        reporters?: BaseReporter[],
-        options: TestRunnerOptions = {}
-    )
-    {
-        super();
-        if (!loadedSpecification.isLoaded)
-            throw new Error("Cannot run an unloaded software specification. Call load() before passing it to TestRunner.");
-        this.specification = loadedSpecification;
-        this.reporters = reporters;
-        this.options = options;
+  testingCompleted: Awaitable<void> = new Awaitable();
+  constructor(
+    loadedSpecification: SoftwareSpecification,
+    reporters?: BaseReporter[],
+    options: TestRunnerOptions = {},
+  ) {
+    super();
+    if (!loadedSpecification.isLoaded) {
+      throw new Error(
+        "Cannot run an unloaded software specification. Call load() before passing it to TestRunner.",
+      );
+    }
+    this.specification = loadedSpecification;
+    this.reporters = reporters;
+    this.options = options;
+  }
+
+  /**
+   * Runs all discovered test modules, suites, and tests.
+   */
+  async run(): Promise<void> {
+    const debugSuite = this.specification.testSuites.find((suite) =>
+      suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined
+    );
+
+    if (debugSuite) {
+      //If we have a debug test, we filter the spec to only the test to debug
+      const debugModule = this.specification.testModules.find((module) =>
+        module.testSuites.includes(debugSuite)
+      )!;
+      this.specification.testModules = this.specification.testModules.filter(
+        (module) => module === debugModule,
+      );
+      debugModule.testSuites = debugModule.testSuites.filter((suite) =>
+        suite === debugSuite
+      );
+      const debugTest = debugSuite.tests.find((test) =>
+        test.testFunctionName ===
+          debugSuite.testClassConstructor.prototype.__meta?.debugTestName
+      )!;
+
+      if (debugSuite.isSequential) {
+        //If the suite is sequential, we only execute the test and all tests before it
+        const testIndex = debugSuite.tests.indexOf(debugTest);
+        debugSuite.tests = debugSuite.tests.slice(0, testIndex + 1);
+      } //If the suite is parallel, we only execute the test
+      else {
+        debugSuite.tests = debugSuite.tests.filter((test) =>
+          test === debugTest
+        );
+      }
+
+      if (!this.options.suppressDebugWarning) {
+        console.warn(
+          `Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`,
+        );
+      }
     }
 
-    async run(): Promise<void>
-    {
-        const debugSuite = this.specification.testSuites.find(suite => suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined);
-
-        if (debugSuite)
-        {
-            //If we have a debug test, we filter the spec to only the test to debug
-            const debugModule = this.specification.testModules.find(module => module.testSuites.includes(debugSuite))!;
-            this.specification.testModules = this.specification.testModules.filter(module => module === debugModule);
-            debugModule.testSuites = debugModule.testSuites.filter(suite => suite === debugSuite);
-            const debugTest = debugSuite.tests.find(test => test.testFunctionName === debugSuite.testClassConstructor.prototype.__meta?.debugTestName)!;
-
-            if (debugSuite.isSequential)
-            {
-                //If the suite is sequential, we only execute the test and all tests before it
-                const testIndex = debugSuite.tests.indexOf(debugTest);
-                debugSuite.tests = debugSuite.tests.slice(0, testIndex + 1);
-            }
-            else
-                //If the suite is parallel, we only execute the test
-                debugSuite.tests = debugSuite.tests.filter(test => test === debugTest);
-
-            if (!this.options.suppressDebugWarning)
-                console.warn(`Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`);
-        }
-
-        if (!debugSuite && this.reporters)
-            for (const reporter of this.reporters)
-                reporter.onTestRunStart();
-
-        const moduleRuns = [];
-        for (const module of this.specification.testModules)
-            moduleRuns.push(module.run());
-        await Promise.all(moduleRuns);
-
-        if (!debugSuite && this.reporters)
-            for (const reporter of this.reporters)
-                reporter.onTestRunEnd();
-
-        this.testingCompleted.resolve();
+    if (!debugSuite && this.reporters) {
+      for (const reporter of this.reporters) {
+        reporter.onTestRunStart();
+      }
     }
+
+    const moduleRuns = [];
+    for (const module of this.specification.testModules) {
+      moduleRuns.push(module.run());
+    }
+    await Promise.all(moduleRuns);
+
+    if (!debugSuite && this.reporters) {
+      for (const reporter of this.reporters) {
+        reporter.onTestRunEnd();
+      }
+    }
+
+    this.testingCompleted.resolve();
+  }
 }
 
 type TestRunnerOptions = {
-    suppressDebugWarning?: boolean;
+  suppressDebugWarning?: boolean;
 };
 
-abstract class Serializable
-{
-    abstract serialize(): any;
+abstract class Serializable {
+  abstract serialize(): any;
 }
 
-export abstract class Observable extends Serializable
-{
-    runStarted: Awaitable<void> = new Awaitable();
-    runCompleted: Awaitable<void> = new Awaitable();
+export abstract class Observable extends Serializable {
+  runStarted: Awaitable<void> = new Awaitable();
+  runCompleted: Awaitable<void> = new Awaitable();
 }
 
-export abstract class SoftwareSpecification extends Serializable
-{
-    public testModules: TestModule[] = [];
-    public isLoaded = false;
+/**
+ * Represents a collection of test modules loaded from runtime-specific entry points.
+ *
+ * A module is one imported test file. Each exported test class in that module becomes
+ * a suite, and each test method on that class becomes an individual test.
+ */
+export abstract class SoftwareSpecification extends Serializable {
+  public testModules: TestModule[] = [];
+  public isLoaded = false;
 
-    get testSuites(): TestSuite[]
-    {
-        return this.testModules.flatMap(module => module.testSuites);
+  /**
+   * All test suites discovered across loaded modules.
+   */
+  get testSuites(): TestSuite[] {
+    return this.testModules.flatMap((module) => module.testSuites);
+  }
+
+  /**
+   * All tests discovered across loaded suites.
+   */
+  get tests(): Test[] {
+    return this.testSuites.flatMap((suite) => suite.tests);
+  }
+
+  /**
+   * Resolves and imports test modules from entry points.
+   *
+   * @example
+   * ```ts
+   * const spec = new AppSpecification();
+   * await spec.load(["./source", "./tests/example.test.ts"]);
+   * ```
+   */
+  public async load(entryPointsOrModuleURLs: string[] = ["."]): Promise<void> {
+    for (
+      const moduleURL of await this.resolveTestModuleURLs(
+        entryPointsOrModuleURLs,
+      )
+    ) {
+      this.testModules.push(
+        new TestModule(moduleURL, await import(/*@vite-ignore*/ moduleURL)),
+      );
     }
 
-    get tests(): Test[]
-    {
-        return this.testSuites.flatMap(suite => suite.tests);
-    }
+    this.isLoaded = true;
+  }
 
-    public async load(entryPointsOrModuleURLs: string[] = ["."]): Promise<void>
-    {
-        for (const moduleURL of await this.resolveTestModuleURLs(entryPointsOrModuleURLs))
-            this.testModules.push(new TestModule(moduleURL, await import(/*@vite-ignore*/moduleURL)));
+  abstract resolveTestModuleURLs(entryPoints: string[]): Promise<string[]>;
 
-        this.isLoaded = true;
-    }
-
-    abstract resolveTestModuleURLs(entryPoints: string[]): Promise<string[]>;
-
-    serialize(): SerializedSoftwareSpecification
-    {
-        return {
-            modules: this.testModules.map(module => module.serialize())
-        };
-    }
+  /**
+   * Converts the loaded specification into a JSON-serializable result tree.
+   */
+  serialize(): SerializedSoftwareSpecification {
+    return {
+      modules: this.testModules.map((module) => module.serialize()),
+    };
+  }
 }
 
-export class URLSetSpecification extends SoftwareSpecification
-{
-    async resolveTestModuleURLs(moduleURLs: string[]): Promise<string[]>
-    {
-        return moduleURLs;
-    }
+/**
+ * Software specification that treats provided entry points as importable module URLs.
+ * It does not perform resolution logic and returns the provided URLs unchanged, so it is the responsibility of the caller to provide valid module URLs.
+ */
+export class URLSetSpecification extends SoftwareSpecification {
+  /**
+   * Returns the provided module URLs unchanged.
+   */
+  async resolveTestModuleURLs(moduleURLs: string[]): Promise<string[]> {
+    return moduleURLs;
+  }
 }
 
-export class TestModule extends Observable
-{
-    public path: string;
-    testSuites: TestSuite[] = [];
+export class TestModule extends Observable {
+  public path: string;
+  testSuites: TestSuite[] = [];
 
-    get tests(): Test[]
-    {
-        return this.testSuites.flatMap(suite => suite.tests);
+  get tests(): Test[] {
+    return this.testSuites.flatMap((suite) => suite.tests);
+  }
+
+  constructor(
+    path: string,
+    module: any,
+  ) {
+    super();
+    this.path = path;
+    for (const key in module) {
+      if (TestSuite.isValid(module[key])) {
+        this.testSuites.push(new TestSuite(this, module[key]));
+      }
+    }
+  }
+
+  async run(): Promise<void> {
+    this.runStarted.resolve();
+
+    const suiteRuns = [];
+    for (const suite of this.testSuites) {
+      suiteRuns.push(suite.run());
     }
 
-    constructor(
-        path: string,
-        module: any
-    )
-    {
-        super();
-        this.path = path;
-        for (const key in module)
-            if (TestSuite.isValid(module[key]))
-                this.testSuites.push(new TestSuite(this, module[key]));
-    }
+    await Promise.all(suiteRuns);
 
-    async run(): Promise<void>
-    {
-        this.runStarted.resolve();
+    this.runCompleted.resolve();
+  }
 
-        const suiteRuns = [];
-        for (const suite of this.testSuites)
-            suiteRuns.push(suite.run());
-
-        await Promise.all(suiteRuns);
-
-        this.runCompleted.resolve();
-    }
-
-    serialize(): SerializedTestModule
-    {
-        return {
-            path: this.path,
-            suites: this.testSuites.map(suite => suite.serialize())
-        };
-    }
+  serialize(): SerializedTestModule {
+    return {
+      path: this.path,
+      suites: this.testSuites.map((suite) => suite.serialize()),
+    };
+  }
 }
 
 export type TestSuiteConstructor =
-    IParallelTestSuiteStaticHooks &
-    {
-        new(): ISequentialTestSuiteMemberHooks;
-        prototype: ISequentialTestSuiteMemberHooks & ITestSuiteMetadata & Record<string, Function>;
-    };
+  & IParallelTestSuiteStaticHooks
+  & {
+    new (): ISequentialTestSuiteMemberHooks;
+    prototype:
+      & ISequentialTestSuiteMemberHooks
+      & ITestSuiteMetadata
+      & Record<string, Function>;
+  };
 
 type ITestSuiteMetadata = {
-    __meta?: {
-        isSequential?: boolean;
-        debugTestName?: string;
-    };
+  __meta?: {
+    isSequential?: boolean;
+    debugTestName?: string;
+  };
 };
 
-export class TestSuite extends Observable
-{
-    public testModule: TestModule;
-    public testClassConstructor: TestSuiteConstructor;
-    public className: string;
-    public name: string;
-    public tests: Test[] = [];
+export class TestSuite extends Observable {
+  public testModule: TestModule;
+  public testClassConstructor: TestSuiteConstructor;
+  public className: string;
+  public name: string;
+  public tests: Test[] = [];
 
-    public isSequential = false;
-    public containsTestHooks = false;
+  public isSequential = false;
+  public containsTestHooks = false;
 
-    constructor(
-        testModule: TestModule,
-        testClassConstructor: TestSuiteConstructor
-    )
-    {
-        super();
-        this.testModule = testModule;
-        this.testClassConstructor = testClassConstructor;
-        this.className = testClassConstructor.name;
-        this.name = capitalCase(camelToNormal(this.className));
+  constructor(
+    testModule: TestModule,
+    testClassConstructor: TestSuiteConstructor,
+  ) {
+    super();
+    this.testModule = testModule;
+    this.testClassConstructor = testClassConstructor;
+    this.className = testClassConstructor.name;
+    this.name = capitalCase(camelToNormal(this.className));
 
-        const testFunctionNames = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
+    const testFunctionNames = Object.getOwnPropertyNames(
+      this.testClassConstructor.prototype,
+    );
 
-        const noTestNames = ["constructor", "onSetup", "onBeforeEach", "onAfterEach", "onTeardown"];
+    const noTestNames = [
+      "constructor",
+      "onSetup",
+      "onBeforeEach",
+      "onAfterEach",
+      "onTeardown",
+    ];
 
-        if (this.testClassConstructor.prototype.onBeforeEach || this.testClassConstructor.prototype.onAfterEach || this.testClassConstructor.prototype.onSetup || this.testClassConstructor.prototype.onTeardown)
-            this.containsTestHooks = true;
-
-        if (this.testClassConstructor.prototype.__meta?.isSequential || this.containsTestHooks)
-            this.isSequential = true;
-
-        for (const testFunctionName of testFunctionNames)
-            if (!noTestNames.includes(testFunctionName) && typeof this.testClassConstructor.prototype[testFunctionName] === "function")
-            {
-                const testFunction = this.testClassConstructor.prototype[testFunctionName] as UnitiumDebuggableMethod;
-                if (testFunction[unitiumDebugTestMetadataKey] === testFunctionName)
-                {
-                    this.testClassConstructor.prototype.__meta = this.testClassConstructor.prototype.__meta ?? {};
-                    this.testClassConstructor.prototype.__meta.debugTestName = testFunctionName;
-                }
-
-                this.tests.push(new Test(this, testFunctionName));
-            }
+    if (
+      this.testClassConstructor.prototype.onBeforeEach ||
+      this.testClassConstructor.prototype.onAfterEach ||
+      this.testClassConstructor.prototype.onSetup ||
+      this.testClassConstructor.prototype.onTeardown
+    ) {
+      this.containsTestHooks = true;
     }
 
-    static isValid(constructorFct: any): constructorFct is TestSuiteConstructor
-    {
-        return typeof constructorFct === "function" && constructorFct.prototype;
+    if (
+      this.testClassConstructor.prototype.__meta?.isSequential ||
+      this.containsTestHooks
+    ) {
+      this.isSequential = true;
     }
 
-    async run(debugTest?: Test): Promise<void>
-    {
-        this.runStarted.resolve();
-
-        if (this.isSequential)
-        {
-            const testInstance = new this.testClassConstructor();
-
-            testInstance.onSetup?.();
-            for (const test of this.tests)
-            {
-                await testInstance.onBeforeEach?.(test);
-                await test.run(testInstance);
-                await testInstance.onAfterEach?.(test);
-            }
-            testInstance.onTeardown?.();
-        }
-        else
-        {
-            const testRunPromises = [];
-            await this.testClassConstructor.onSetup?.();
-
-            for (const test of this.tests)
-                testRunPromises.push(this.runTestParallel(test));
-
-            await Promise.all(testRunPromises);
-
-            await this.testClassConstructor.onTeardown?.();
+    for (const testFunctionName of testFunctionNames) {
+      if (
+        !noTestNames.includes(testFunctionName) &&
+        typeof this.testClassConstructor.prototype[testFunctionName] ===
+          "function"
+      ) {
+        const testFunction = this.testClassConstructor
+          .prototype[testFunctionName] as UnitiumDebuggableMethod;
+        if (testFunction[unitiumDebugTestMetadataKey] === testFunctionName) {
+          this.testClassConstructor.prototype.__meta =
+            this.testClassConstructor.prototype.__meta ?? {};
+          this.testClassConstructor.prototype.__meta.debugTestName =
+            testFunctionName;
         }
 
-        this.runCompleted.resolve();
+        this.tests.push(new Test(this, testFunctionName));
+      }
     }
+  }
 
-    async runTestParallel(test: Test): Promise<void>
-    {
-        const testInstance = new this.testClassConstructor();
+  static isValid(constructorFct: any): constructorFct is TestSuiteConstructor {
+    return typeof constructorFct === "function" && constructorFct.prototype;
+  }
+
+  async run(debugTest?: Test): Promise<void> {
+    this.runStarted.resolve();
+
+    if (this.isSequential) {
+      const testInstance = new this.testClassConstructor();
+
+      testInstance.onSetup?.();
+      for (const test of this.tests) {
         await testInstance.onBeforeEach?.(test);
         await test.run(testInstance);
         await testInstance.onAfterEach?.(test);
+      }
+      testInstance.onTeardown?.();
+    } else {
+      const testRunPromises = [];
+      await this.testClassConstructor.onSetup?.();
+
+      for (const test of this.tests) {
+        testRunPromises.push(this.runTestParallel(test));
+      }
+
+      await Promise.all(testRunPromises);
+
+      await this.testClassConstructor.onTeardown?.();
     }
 
-    serialize(): SerializedTestSuite
-    {
-        return {
-            class: this.className,
-            name: this.name,
-            tests: this.tests.map(test => test.serialize())
-        };
-    }
+    this.runCompleted.resolve();
+  }
+
+  async runTestParallel(test: Test): Promise<void> {
+    const testInstance = new this.testClassConstructor();
+    await testInstance.onBeforeEach?.(test);
+    await test.run(testInstance);
+    await testInstance.onAfterEach?.(test);
+  }
+
+  serialize(): SerializedTestSuite {
+    return {
+      class: this.className,
+      name: this.name,
+      tests: this.tests.map((test) => test.serialize()),
+    };
+  }
 }
 
-export class Test extends Observable
-{
-    public testSuite: TestSuite;
-    public testFunctionName: string;
-    public error?: TestError;
-    public description?: string;
+export class Test extends Observable {
+  public testSuite: TestSuite;
+  public testFunctionName: string;
+  public error?: TestError;
+  public description?: string;
 
-    constructor(
-        testSuite: TestSuite,
-        testFunctionName: string
-    )
-    {
-        super();
-        this.testSuite = testSuite;
-        this.testFunctionName = testFunctionName;
+  constructor(
+    testSuite: TestSuite,
+    testFunctionName: string,
+  ) {
+    super();
+    this.testSuite = testSuite;
+    this.testFunctionName = testFunctionName;
+  }
+
+  get name(): string {
+    return titleCase(camelToNormal(this.testFunctionName));
+  }
+
+  async run(testFixture: any): Promise<void> {
+    this.runStarted.resolve();
+
+    try {
+      await testFixture[this.testFunctionName]();
+    } catch (e: Error | any) {
+      this.error = new TestError(e);
     }
 
-    get name(): string
-    {
-        return titleCase(camelToNormal(this.testFunctionName));
+    this.runCompleted.resolve();
+  }
+
+  serialize(): SerializedTest {
+    let status;
+    if (!this.runCompleted.isResolved) {
+      status = "None";
+    } else {
+      status = this.error ? "Fail" : "Pass";
     }
 
-    async run(testFixture: any): Promise<void>
-    {
-        this.runStarted.resolve();
-
-        try
-        {
-            await testFixture[this.testFunctionName]();
-        }
-        catch (e: Error | any)
-        {
-            this.error = new TestError(e);
-        }
-
-        this.runCompleted.resolve();
-    }
-
-    serialize(): SerializedTest
-    {
-        let status;
-        if (!this.runCompleted.isResolved)
-            status = "None";
-        else
-            status = this.error ? "Fail" : "Pass";
-
-        return {
-            method: this.testFunctionName,
-            name: this.name,
-            description: this.description,
-            status: status as "None" | "Fail" | "Pass",
-            error: this.error
-        };
-    }
+    return {
+      method: this.testFunctionName,
+      name: this.name,
+      description: this.description,
+      status: status as "None" | "Fail" | "Pass",
+      error: this.error,
+    };
+  }
 }
 
-export class TestError extends Serializable
-{
-    private error: Error;
-    public actual: any;
-    public expected: any;
-    public name!: string;
-    public message!: string;
-    public stack!: string;
-    public sourceFile: string;
-    public fileLocation: SourceFileLocation;
+export class TestError extends Serializable {
+  private error: Error;
+  public actual: any;
+  public expected: any;
+  public name!: string;
+  public message!: string;
+  public stack!: string;
+  public sourceFile: string;
+  public fileLocation: SourceFileLocation;
 
-    constructor(error: Error)
-    {
-        super();
-        this.error = error;
-        Object.assign(this, error);
-        this.name = error.name;
+  constructor(error: Error) {
+    super();
+    this.error = error;
+    Object.assign(this, error);
+    this.name = error.name;
 
-        const stackLocation = parseStackLocation(error.stack);
-        this.sourceFile = stackLocation?.sourceFile ?? "";
-        this.fileLocation = stackLocation?.fileLocation ?? { line: 0, column: 0 };
-    }
+    const stackLocation = parseStackLocation(error.stack);
+    this.sourceFile = stackLocation?.sourceFile ?? "";
+    this.fileLocation = stackLocation?.fileLocation ?? { line: 0, column: 0 };
+  }
 
-    serialize(): SerializedTestError
-    {
-        return {
-            error: this.error,
-            actual: this.actual,
-            expected: this.expected,
-            name: this.name,
-            message: this.message,
-            stack: this.stack,
-            sourceFile: this.sourceFile,
-            fileLocation: this.fileLocation
-        };
-    }
+  serialize(): SerializedTestError {
+    return {
+      error: this.error,
+      actual: this.actual,
+      expected: this.expected,
+      name: this.name,
+      message: this.message,
+      stack: this.stack,
+      sourceFile: this.sourceFile,
+      fileLocation: this.fileLocation,
+    };
+  }
 }
 
-function parseStackLocation(stack?: string): ParsedStackLocation | undefined
-{
-    if (!stack)
-        return undefined;
-
-    for (const line of stack.split("\n"))
-    {
-        const frame = line.trim();
-
-        if (!frame.startsWith("at "))
-            continue;
-
-        const frameBody = frame.slice(3);
-        const location = frameBody.endsWith(")") && frameBody.includes("(")
-            ? frameBody.slice(frameBody.lastIndexOf("(") + 1, -1)
-            : frameBody;
-
-        const locationParts = /^(.*):(\d+):(\d+)$/.exec(location);
-
-        if (!locationParts || locationParts[1] === "native" || locationParts[1] === "unknown location")
-            continue;
-
-        return {
-            sourceFile: locationParts[1],
-            fileLocation: {
-                line: Number(locationParts[2]),
-                column: Number(locationParts[3])
-            }
-        };
-    }
-
+function parseStackLocation(stack?: string): ParsedStackLocation | undefined {
+  if (!stack) {
     return undefined;
+  }
+
+  for (const line of stack.split("\n")) {
+    const frame = line.trim();
+
+    if (!frame.startsWith("at ")) {
+      continue;
+    }
+
+    const frameBody = frame.slice(3);
+    const location = frameBody.endsWith(")") && frameBody.includes("(")
+      ? frameBody.slice(frameBody.lastIndexOf("(") + 1, -1)
+      : frameBody;
+
+    const locationParts = /^(.*):(\d+):(\d+)$/.exec(location);
+
+    if (
+      !locationParts || locationParts[1] === "native" ||
+      locationParts[1] === "unknown location"
+    ) {
+      continue;
+    }
+
+    return {
+      sourceFile: locationParts[1],
+      fileLocation: {
+        line: Number(locationParts[2]),
+        column: Number(locationParts[3]),
+      },
+    };
+  }
+
+  return undefined;
 }
 
-function camelToNormal(camelCaseString: string): string
-{
-    return camelCaseString.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+function camelToNormal(camelCaseString: string): string {
+  return camelCaseString.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 }
 
-function titleCase(text: string): string
-{
-    return text[0].toUpperCase() + text.slice(1).toLowerCase();
+function titleCase(text: string): string {
+  return text[0].toUpperCase() + text.slice(1).toLowerCase();
 }
 
-function capitalCase(text: string): string
-{
-    return text.split(" ").map(s => titleCase(s)).join(" ");
+function capitalCase(text: string): string {
+  return text.split(" ").map((s) => titleCase(s)).join(" ");
 }

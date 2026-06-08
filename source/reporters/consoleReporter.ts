@@ -1,60 +1,70 @@
 import { BaseReporter } from "./base.ts";
-import { TestModule, TestSuite, Test, TestError } from "../core/unitium.ts";
+import { Test, TestError, TestModule, TestSuite } from "../core/unitium.ts";
 
-export class ConsoleReporter extends BaseReporter
-{
-    onTestRunStart(): void
-    {
-        console.log("Testing started.");
+/**
+ * Reporter that prints a human-readable test run summary to the console.
+ */
+export class ConsoleReporter extends BaseReporter {
+  /**
+   * Announces the start of a test run.
+   */
+  onTestRunStart(): void {
+    console.log("Testing started.");
+  }
+
+  /**
+   * Prints the final summary and per-test results.
+   */
+  onTestRunEnd(): void {
+    console.log("Testing finished.");
+
+    const totalTestCount = this.specification.tests.length;
+    const failedTestCount =
+      this.specification.tests.filter((test) => test.error !== undefined)
+        .length;
+
+    if (failedTestCount === 0) {
+      console.log("All tests passed.");
+    } else {
+      console.log(`${failedTestCount} of ${totalTestCount} tests failed.`);
     }
 
-    onTestRunEnd(): void
-    {
-        console.log("Testing finished.");
+    for (const module of this.specification.testModules) {
+      this.printModuleResults(module);
+    }
+  }
 
-        const totalTestCount = this.specification.tests.length;
-        const failedTestCount = this.specification.tests.filter(test => test.error !== undefined).length;
+  protected printModuleResults(module: TestModule): void {
+    for (const suite of module.testSuites) {
+      this.printSuiteResults(suite);
+    }
+  }
 
-        if (failedTestCount === 0)
-            console.log("All tests passed.");
-        else
-            console.log(`${failedTestCount} of ${totalTestCount} tests failed.`);
+  protected printSuiteResults(suite: TestSuite): void {
+    console.group(suite.name);
 
-        for (const module of this.specification.testModules)
-            this.printModuleResults(module);
+    for (const test of suite.tests) {
+      this.printTestResults(test);
     }
 
-    printModuleResults(module: TestModule): void
-    {
-        for (const suite of module.testSuites)
-            this.printSuiteResults(suite);
+    console.groupEnd();
+  }
+
+  protected printTestResults(test: Test): void {
+    if (!test.error) {
+      console.log("🟢    " + test.name);
+    } else {
+      console.group("🔴   " + test.name);
+      this.printError(test.error);
+      console.groupEnd();
     }
+  }
 
-    printSuiteResults(suite: TestSuite): void
-    {
-        console.group(suite.name);
-
-        for (const test of suite.tests)
-            this.printTestResults(test);
-
-        console.groupEnd();
-    }
-
-    printTestResults(test: Test): void
-    {
-        if (!test.error)
-            console.log("🟢    " + test.name);
-        else
-        {
-            console.group("🔴   " + test.name);
-            this.printError(test.error);
-            console.groupEnd();
-        }
-    }
-
-    printError(error: TestError): void
-    {
-        console.log(`${error.name}: ${error.message || "unkown"} --> "${error.sourceFile}:${error.fileLocation.line}:${error.fileLocation.column}"`);
-    }
-
+  protected printError(error: TestError): void {
+    console.log(
+      `${error.name}: ${
+        error.message || "unkown"
+      } --> "${error.sourceFile}:${error.fileLocation.line}:${error.fileLocation.column}"`,
+    );
+  }
 }
