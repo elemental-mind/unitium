@@ -29,7 +29,7 @@
     "node": ">=22.18"
   },
   "bin": {
-    "unitium": "cli.js",
+    "unitium": "environments/cli/node/exec.js",
     "unitium-tsx": "environments/cli/node/exec-tsx.js",
     "unitium-ts-node": "environments/cli/node/exec-ts-node.js"
   },
