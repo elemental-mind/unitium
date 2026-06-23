@@ -182,7 +182,9 @@ class DBTest
 
 ## Decorators
 
-Unitium exports standard TC39 decorators from its main test-suite API:
+Unitium exports standard TC39 decorators from its main test-suite API.
+
+Note: When using decorators you need to either execute the tests using `unitium-ts-node`, `unitium tsx` or by using `bunx unitium` or `deno` as node does support type stripping naturally but discontinued TypeScript type transformations in V26 - thus not supporting decorators.
 
 ```typescript
 import { Debug, Sequential } from "unitium";
@@ -237,6 +239,31 @@ class TestSuite
     testThatWillNotBeRun(){}
 }
 ```
+
+#### VS Code launch configuration
+
+To debug tests in VS Code, create a `.vscode/launch.json` file in your project root with a configuration that targets one of the unitium executables. Here is an example config using `unitium-tsx`:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run unitium-tsx",
+            "runtimeExecutable": "unitium-tsx",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole"
+        }
+    ]
+}
+```
+
+This configuration launches the Node.js debugger with `unitium-tsx` as the runtime executable. Place breakpoints in your test files and start debugging from the Run and Debug panel (Ctrl+Shift+D) or by hitting `F5`. If you want to debug only a specific test file, add it to the `args` array, for example `"args": ["./src/module.test.ts"]`.
+
+Note: If you have installed `unitium` globally the `@Debug` decorator resolution does not work properly. Make sure you do NOT have `unitium` saved globally but rather install it through `npm install --save-dev unitium`.
 
 <a id="use-cli-runtimes"></a>
 
