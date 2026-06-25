@@ -17,8 +17,8 @@
     "e2e:deno": "cd tests/fixtures/cli-end2end/deno && deno x jsr:@elemental/unitium/cli",
     "build:node": "tsx ./build-npm-package.ts",
     "build:deno": "tsx ./build-jsr-package.ts",
-    "publish:npm": "npm run build:node && npm publish ./distribution/node",
-    "publish:jsr": "npm run build:deno && cd distribution/deno && deno publish"
+    "publish:npm": "git push --follow-tags && npm run build:node && npm publish ./distribution/node",
+    "publish:jsr": "git push --follow-tags && npm run build:deno && cd distribution/deno && deno publish"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
