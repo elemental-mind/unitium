@@ -1,13 +1,6 @@
 import { Awaitable } from "deferium";
-import type {
-  IParallelTestSuiteStaticHooks,
-  ISequentialTestSuiteMemberHooks,
-} from "./hooks.ts";
+import type { IParallelTestSuiteStaticHooks, ISequentialTestSuiteMemberHooks } from "./hooks.ts";
 import type { BaseReporter } from "../reporters/base.ts";
-import {
-  type UnitiumDebuggableMethod,
-  unitiumDebugTestMetadataKey,
-} from "./decorator-metadata.ts";
 
 export type TestRunStatus = "None" | "Fail" | "Pass";
 
@@ -45,6 +38,14 @@ export type SerializedTestError = {
     fileLocation: SourceFileLocation;
 };
 
+export type TestSuiteConstructor = IParallelTestSuiteStaticHooks & {
+    new(): ISequentialTestSuiteMemberHooks;
+    isSequential?: boolean;
+    prototype: ISequentialTestSuiteMemberHooks & Record<string, Function>;
+};
+
+export type TestMethod = Function & { isDebugTest: boolean; };
+
 export type SourceFileLocation = {
     line: number;
     column: number;
@@ -56,93 +57,71 @@ type ParsedStackLocation = {
 };
 
 /**
- * Executes a loaded software specification and notifies configured reporters.
- */
+* Executes a loaded software specification and notifies configured reporters.
+*/
 export class TestRunner extends Awaitable
 {
     public specification: SoftwareSpecification;
     public reporters?: BaseReporter[];
     public options: TestRunnerOptions;
 
-  testingCompleted: Awaitable<void> = new Awaitable();
-  constructor(
-    loadedSpecification: SoftwareSpecification,
-    reporters?: BaseReporter[],
-    options: TestRunnerOptions = {},
-  ) {
-    super();
-    if (!loadedSpecification.isLoaded) {
-      throw new Error(
-        "Cannot run an unloaded software specification. Call load() before passing it to TestRunner.",
-      );
-    }
-    this.specification = loadedSpecification;
-    this.reporters = reporters;
-    this.options = options;
-  }
+    public debugTarget?: TestModule;
 
-  /**
-   * Runs all discovered test modules, suites, and tests.
-   */
-  async run(): Promise<void> {
-    const debugSuite = this.specification.testSuites.find((suite) =>
-      suite.testClassConstructor.prototype.__meta?.debugTestName !== undefined
-    );
+    testingCompleted: Awaitable<void> = new Awaitable();
 
-    if (debugSuite) {
-      //If we have a debug test, we filter the spec to only the test to debug
-      const debugModule = this.specification.testModules.find((module) =>
-        module.testSuites.includes(debugSuite)
-      )!;
-      this.specification.testModules = this.specification.testModules.filter(
-        (module) => module === debugModule,
-      );
-      debugModule.testSuites = debugModule.testSuites.filter((suite) =>
-        suite === debugSuite
-      );
-      const debugTest = debugSuite.tests.find((test) =>
-        test.testFunctionName ===
-          debugSuite.testClassConstructor.prototype.__meta?.debugTestName
-      )!;
+    constructor(loadedSpecification: SoftwareSpecification, reporters?: BaseReporter[], options: TestRunnerOptions = {})
+    {
+        super();
 
-      if (debugSuite.isSequential) {
-        //If the suite is sequential, we only execute the test and all tests before it
-        const testIndex = debugSuite.tests.indexOf(debugTest);
-        debugSuite.tests = debugSuite.tests.slice(0, testIndex + 1);
-      } //If the suite is parallel, we only execute the test
-      else {
-        debugSuite.tests = debugSuite.tests.filter((test) =>
-          test === debugTest
-        );
-      }
+        if (!loadedSpecification.isLoaded)
+            throw new Error("Cannot run an unloaded software specification. Call load() before passing it to TestRunner.");
 
-      if (!this.options.suppressDebugWarning) {
-        console.warn(
-          `Running in test debug mode. Only executing test "${debugTest.name}" in "${debugTest.testSuite.testClassConstructor.name}" in ${debugModule.path}.\nRemove the @Debug decorator to run the full test suite.`,
-        );
-      }
+        this.specification = loadedSpecification;
+        this.reporters = reporters;
+        this.options = options;
+
+        const debugModule = this.specification.testModules.find(module => module.debugTarget !== undefined);
+        if (debugModule !== undefined)
+            this.debugTarget = debugModule;
     }
 
-    if (!debugSuite && this.reporters) {
-      for (const reporter of this.reporters) {
-        reporter.onTestRunStart();
-      }
+    /**
+    * Runs all discovered test modules, suites, and tests.
+    */
+    async run(): Promise<void>
+    {
+        if (this.debugTarget === undefined)
+            await this.runAllTests();
+        else
+            await this.runDebugTest();
+
+        this.testingCompleted.resolve();
     }
 
-    const moduleRuns = [];
-    for (const module of this.specification.testModules) {
-      moduleRuns.push(module.run());
-    }
-    await Promise.all(moduleRuns);
+    private async runAllTests()
+    {
+        if (this.reporters)
+            for (const reporter of this.reporters)
+                reporter.onTestRunStart();
 
-    if (!debugSuite && this.reporters) {
-      for (const reporter of this.reporters) {
-        reporter.onTestRunEnd();
-      }
+        const moduleRuns = [];
+        for (const module of this.specification.testModules)
+            moduleRuns.push(module.run());
+
+        await Promise.all(moduleRuns);
+
+        if (this.reporters)
+            for (const reporter of this.reporters)
+                reporter.onTestRunEnd();
     }
 
-    this.testingCompleted.resolve();
-  }
+    private async runDebugTest()
+    {
+        if (!this.options.suppressDebugWarning)
+            console.warn(`Running in test debug mode. Only executing test "${this.debugTarget!.debugTarget!.debugTarget!.name}" in "${this.debugTarget?.debugTarget?.className}" in ${this.debugTarget?.path}.\nRemove the @Debug decorator to run the full test suite.`);
+
+        await this.debugTarget!.run();
+    }
 }
 
 type TestRunnerOptions = {
@@ -235,7 +214,9 @@ export class URLSetSpecification extends SoftwareSpecification
 export class TestModule extends Observable
 {
     public path: string;
-  testSuites: TestSuite[] = [];
+    public testSuites: TestSuite[] = [];
+
+    public debugTarget?: TestSuite;
 
     get tests(): Test[]
     {
@@ -246,9 +227,12 @@ export class TestModule extends Observable
     {
         super();
         this.path = path;
-    for (const key in module) {
-      if (TestSuite.isValid(module[key])) {
-        this.testSuites.push(new TestSuite(this, module[key]);
+        for (const key in module)
+        {
+            if (!TestSuite.isValid(module[key]))
+                continue;
+
+            const suite = new TestSuite(this, module[key]);
             if (suite.debugTarget !== undefined)
                 this.debugTarget = suite;
 
@@ -260,12 +244,16 @@ export class TestModule extends Observable
     {
         this.runStarted.resolve();
 
-    const suiteRuns = [];
-    for (const suite of this.testSuites) {
-      suiteRuns.push(suite.run());
-    }
+        if (this.debugTarget)
+            await this.debugTarget.run();
+        else
+        {
+            const suiteRuns = [];
+            for (const suite of this.testSuites)
+                suiteRuns.push(suite.run());
 
-    await Promise.all(suiteRuns);
+            await Promise.all(suiteRuns);
+        }
 
         this.runCompleted.resolve();
     }
@@ -279,23 +267,6 @@ export class TestModule extends Observable
     }
 }
 
-export type TestSuiteConstructor =
-  & IParallelTestSuiteStaticHooks
-  & {
-    new (): ISequentialTestSuiteMemberHooks;
-    prototype:
-      & ISequentialTestSuiteMemberHooks
-      & ITestSuiteMetadata
-      & Record<string, Function>;
-  };
-
-type ITestSuiteMetadata = {
-  __meta?: {
-    isSequential?: boolean;
-    debugTestName?: string;
-  };
-};
-
 export class TestSuite extends Observable
 {
     public testModule: TestModule;
@@ -304,11 +275,12 @@ export class TestSuite extends Observable
     public name: string;
     public tests: Test[] = [];
 
+    public debugTarget?: Test;
+
     public isSequential = false;
     public containsTestHooks = false;
 
-    constructor(testModule: TestModule,
-    testClassConstructor: TestSuiteConstructor,
+    constructor(testModule: TestModule, testClassConstructor: TestSuiteConstructor)
     {
         super();
         this.testModule = testModule;
@@ -326,21 +298,16 @@ export class TestSuite extends Observable
             "onTeardown",
         ];
 
-    if (
-      this.testClassConstructor.prototype.onBeforeEach ||
-      this.testClassConstructor.prototype.onAfterEach ||
-      this.testClassConstructor.prototype.onSetup ||
-      this.testClassConstructor.prototype.onTeardown
-    ) {
+        const testClassProto = this.testClassConstructor.prototype;
+        if (testClassProto.onBeforeEach || testClassProto.onAfterEach || testClassProto.onSetup || testClassProto.onTeardown)
             this.containsTestHooks = true;
 
         if (this.testClassConstructor.isSequential || this.containsTestHooks)
             this.isSequential = true;
-    }
 
-    for (const testFunctionName of testFunctionNames) {
-      if (
-        !noTestNames.includes(testFunctionName) || typeof testClassProto[testFunctionName] !== "function")
+        for (const testFunctionName of testFunctionNames)
+        {
+            if (hookNames.includes(testFunctionName) || typeof testClassProto[testFunctionName] !== "function")
                 continue;
 
             const test = new Test(this, testFunctionName);
@@ -360,23 +327,33 @@ export class TestSuite extends Observable
     {
         this.runStarted.resolve();
 
-    if (this.isSequential) {
-      const testInstance = new this.testClassConstructor();
+        if (this.isSequential)
+        {
+            const stopAtDebugTest = this.debugTarget !== undefined;
+            const testInstance = new this.testClassConstructor();
 
-      testInstance.onSetup?.();
-      for (const test of this.tests) {
-        await testInstance.onBeforeEach?.(test);
-        await test.run(testInstance);
-        await testInstance.onAfterEach?.(test);
-      }
-      testInstance.onTeardown?.();
-    } else {
-      const testRunPromises = [];
-      await this.testClassConstructor.onSetup?.();
+            testInstance.onSetup?.();
+            for (const test of this.tests)
+            {
+                await testInstance.onBeforeEach?.(test);
+                await test.run(testInstance);
 
-      for (const test of this.tests) {
-        testRunPromises.push(this.runTestParallel(test));
-      }
+                if (stopAtDebugTest && this.debugTarget === test) break;
+
+                await testInstance.onAfterEach?.(test);
+            }
+            testInstance.onTeardown?.();
+        }
+        else
+        {
+            const testRunPromises = [];
+            await this.testClassConstructor.onSetup?.();
+
+            if (this.debugTarget)
+                testRunPromises.push(this.runTestParallel(this.debugTarget));
+            else
+                for (const test of this.tests)
+                    testRunPromises.push(this.runTestParallel(test));
 
             await Promise.all(testRunPromises);
 
@@ -418,6 +395,7 @@ export class Test extends Observable
         super();
         this.testSuite = testSuite;
         this.testFunctionName = testFunctionName;
+        this.isDebugTarget = (testSuite.testClassConstructor.prototype[testFunctionName] as TestMethod).isDebugTest;
     }
 
     get name(): string

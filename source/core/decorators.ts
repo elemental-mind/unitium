@@ -1,7 +1,4 @@
-import {
-  type UnitiumDebuggableMethod,
-  unitiumDebugTestMetadataKey,
-} from "./decorator-metadata.ts";
+import type { TestMethod, TestSuiteConstructor } from "./unitium.ts";
 
 /**
  * Marks a test suite class to run its tests sequentially in declaration order.
@@ -26,13 +23,10 @@ import {
  * }
  * ```
  */
-export function Sequential<T extends { new (...args: any[]): object }>(
-  cls: T,
-  _context: ClassDecoratorContext<T>,
-): T {
-  cls.prototype.__meta = cls.prototype.__meta ?? {};
-  cls.prototype.__meta.isSequential = true;
-  return cls;
+export function Sequential<T extends new (...args: any[]) => any>(classConstructor: T, context: ClassDecoratorContext): T
+{
+    (classConstructor as TestSuiteConstructor).isSequential = true;
+    return classConstructor;
 }
 
 /**
@@ -57,15 +51,7 @@ export function Sequential<T extends { new (...args: any[]): object }>(
  * }
  * ```
  */
-export function Debug<This, Args extends any[], Return>(
-  method: (this: This, ...args: Args) => Return,
-  context: ClassMethodDecoratorContext<
-    This,
-    (this: This, ...args: Args) => Return
-  >,
-): void {
-  if (typeof context.name === "string") {
-    (method as UnitiumDebuggableMethod)[unitiumDebugTestMetadataKey] =
-      context.name;
-  }
+export function Debug<This, Args extends any[], Return>(method: (this: This, ...args: Args) => Return, context: ClassMethodDecoratorContext): void
+{
+    (method as Function as TestMethod).isDebugTest = true;
 }
