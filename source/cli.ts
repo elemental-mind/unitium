@@ -30,11 +30,7 @@ class CLIRunner extends TestRunner
 {
     private runtime: CliRuntimeAdapter;
 
-    private constructor(
-        loadedSpecification: SoftwareSpecification,
-        reporters: BaseReporter[],
-        runtime: CliRuntimeAdapter
-    )
+    private constructor(loadedSpecification: SoftwareSpecification, reporters: BaseReporter[], runtime: CliRuntimeAdapter)
     {
         super(loadedSpecification, reporters);
         this.runtime = runtime;

@@ -12,56 +12,57 @@ import {
 export type TestRunStatus = "None" | "Fail" | "Pass";
 
 export type SerializedSoftwareSpecification = {
-  modules: SerializedTestModule[];
+    modules: SerializedTestModule[];
 };
 
 export type SerializedTestModule = {
-  path: string;
-  suites: SerializedTestSuite[];
+    path: string;
+    suites: SerializedTestSuite[];
 };
 
 export type SerializedTestSuite = {
-  class: string;
-  name: string;
-  tests: SerializedTest[];
+    class: string;
+    name: string;
+    tests: SerializedTest[];
 };
 
 export type SerializedTest = {
-  method: string;
-  name: string;
-  description?: string;
-  status: TestRunStatus;
-  error?: TestError;
+    method: string;
+    name: string;
+    description?: string;
+    status: TestRunStatus;
+    error?: TestError;
 };
 
 export type SerializedTestError = {
-  error: Error;
-  actual: any;
-  expected: any;
-  name: string;
-  message: string;
-  stack: string;
-  sourceFile: string;
-  fileLocation: SourceFileLocation;
+    error: Error;
+    actual: any;
+    expected: any;
+    name: string;
+    message: string;
+    stack: string;
+    sourceFile: string;
+    fileLocation: SourceFileLocation;
 };
 
 export type SourceFileLocation = {
-  line: number;
-  column: number;
+    line: number;
+    column: number;
 };
 
 type ParsedStackLocation = {
-  sourceFile: string;
-  fileLocation: SourceFileLocation;
+    sourceFile: string;
+    fileLocation: SourceFileLocation;
 };
 
 /**
  * Executes a loaded software specification and notifies configured reporters.
  */
-export class TestRunner extends Awaitable {
-  public specification: SoftwareSpecification;
-  public reporters?: BaseReporter[];
-  public options: TestRunnerOptions;
+export class TestRunner extends Awaitable
+{
+    public specification: SoftwareSpecification;
+    public reporters?: BaseReporter[];
+    public options: TestRunnerOptions;
 
   testingCompleted: Awaitable<void> = new Awaitable();
   constructor(
@@ -145,113 +146,119 @@ export class TestRunner extends Awaitable {
 }
 
 type TestRunnerOptions = {
-  suppressDebugWarning?: boolean;
+    suppressDebugWarning?: boolean;
 };
 
-abstract class Serializable {
-  abstract serialize(): any;
+abstract class Serializable
+{
+    abstract serialize(): any;
 }
 
-export abstract class Observable extends Serializable {
-  runStarted: Awaitable<void> = new Awaitable();
-  runCompleted: Awaitable<void> = new Awaitable();
+export abstract class Observable extends Serializable
+{
+    runStarted: Awaitable<void> = new Awaitable();
+    runCompleted: Awaitable<void> = new Awaitable();
 }
 
 /**
- * Represents a collection of test modules loaded from runtime-specific entry points.
- *
- * A module is one imported test file. Each exported test class in that module becomes
- * a suite, and each test method on that class becomes an individual test.
- */
-export abstract class SoftwareSpecification extends Serializable {
-  public testModules: TestModule[] = [];
-  public isLoaded = false;
+* Represents a collection of test modules loaded from runtime-specific entry points.
+*
+* A module is one imported test file. Each exported test class in that module becomes
+* a suite, and each test method on that class becomes an individual test.
+*/
+export abstract class SoftwareSpecification extends Serializable
+{
+    public testModules: TestModule[] = [];
+    public isLoaded = false;
 
-  /**
-   * All test suites discovered across loaded modules.
-   */
-  get testSuites(): TestSuite[] {
-    return this.testModules.flatMap((module) => module.testSuites);
-  }
-
-  /**
-   * All tests discovered across loaded suites.
-   */
-  get tests(): Test[] {
-    return this.testSuites.flatMap((suite) => suite.tests);
-  }
-
-  /**
-   * Resolves and imports test modules from entry points.
-   *
-   * @example
-   * ```ts
-   * const spec = new AppSpecification();
-   * await spec.load(["./source", "./tests/example.test.ts"]);
-   * ```
-   */
-  public async load(entryPointsOrModuleURLs: string[] = ["."]): Promise<void> {
-    for (
-      const moduleURL of await this.resolveTestModuleURLs(
-        entryPointsOrModuleURLs,
-      )
-    ) {
-      this.testModules.push(
-        new TestModule(moduleURL, await import(/*@vite-ignore*/ moduleURL)),
-      );
+    /**
+    * All test suites discovered across loaded modules.
+    */
+    get testSuites(): TestSuite[]
+    {
+        return this.testModules.flatMap((module) => module.testSuites);
     }
 
-    this.isLoaded = true;
-  }
+    /**
+    * All tests discovered across loaded suites.
+    */
+    get tests(): Test[]
+    {
+        return this.testSuites.flatMap((suite) => suite.tests);
+    }
 
-  abstract resolveTestModuleURLs(entryPoints: string[]): Promise<string[]>;
+    /**
+    * Resolves and imports test modules from entry points.
+    *
+    * @example
+    * ```ts
+    * const spec = new AppSpecification();
+    * await spec.load(["./source", "./tests/example.test.ts"]);
+    * ```
+    */
+    public async load(entryPointsOrModuleURLs: string[] = ["."]): Promise<void>
+    {
+        for (const moduleURL of await this.resolveTestModuleURLs(entryPointsOrModuleURLs))
+            this.testModules.push(new TestModule(moduleURL, await import(/*@vite-ignore*/ moduleURL)));
 
-  /**
-   * Converts the loaded specification into a JSON-serializable result tree.
-   */
-  serialize(): SerializedSoftwareSpecification {
-    return {
-      modules: this.testModules.map((module) => module.serialize()),
-    };
-  }
+        this.isLoaded = true;
+    }
+
+    abstract resolveTestModuleURLs(entryPoints: string[]): Promise<string[]>;
+
+    /**
+    * Converts the loaded specification into a JSON-serializable result tree.
+    */
+    serialize(): SerializedSoftwareSpecification
+    {
+        return {
+            modules: this.testModules.map((module) => module.serialize()),
+        };
+    }
 }
 
 /**
- * Software specification that treats provided entry points as importable module URLs.
- * It does not perform resolution logic and returns the provided URLs unchanged, so it is the responsibility of the caller to provide valid module URLs.
- */
-export class URLSetSpecification extends SoftwareSpecification {
-  /**
-   * Returns the provided module URLs unchanged.
-   */
-  async resolveTestModuleURLs(moduleURLs: string[]): Promise<string[]> {
-    return moduleURLs;
-  }
+* Software specification that treats provided entry points as importable module URLs.
+* It does not perform resolution logic and returns the provided URLs unchanged, so it is the responsibility of the caller to provide valid module URLs.
+*/
+export class URLSetSpecification extends SoftwareSpecification
+{
+    /**
+    * Returns the provided module URLs unchanged.
+    */
+    async resolveTestModuleURLs(moduleURLs: string[]): Promise<string[]>
+    {
+        return moduleURLs;
+    }
 }
 
-export class TestModule extends Observable {
-  public path: string;
+export class TestModule extends Observable
+{
+    public path: string;
   testSuites: TestSuite[] = [];
 
-  get tests(): Test[] {
-    return this.testSuites.flatMap((suite) => suite.tests);
-  }
+    get tests(): Test[]
+    {
+        return this.testSuites.flatMap((suite) => suite.tests);
+    }
 
-  constructor(
-    path: string,
-    module: any,
-  ) {
-    super();
-    this.path = path;
+    constructor(path: string, module: any)
+    {
+        super();
+        this.path = path;
     for (const key in module) {
       if (TestSuite.isValid(module[key])) {
-        this.testSuites.push(new TestSuite(this, module[key]));
-      }
-    }
-  }
+        this.testSuites.push(new TestSuite(this, module[key]);
+            if (suite.debugTarget !== undefined)
+                this.debugTarget = suite;
 
-  async run(): Promise<void> {
-    this.runStarted.resolve();
+            this.testSuites.push(suite);
+        }
+    }
+
+    async run(): Promise<void>
+    {
+        this.runStarted.resolve();
 
     const suiteRuns = [];
     for (const suite of this.testSuites) {
@@ -260,15 +267,16 @@ export class TestModule extends Observable {
 
     await Promise.all(suiteRuns);
 
-    this.runCompleted.resolve();
-  }
+        this.runCompleted.resolve();
+    }
 
-  serialize(): SerializedTestModule {
-    return {
-      path: this.path,
-      suites: this.testSuites.map((suite) => suite.serialize()),
-    };
-  }
+    serialize(): SerializedTestModule
+    {
+        return {
+            path: this.path,
+            suites: this.testSuites.map((suite) => suite.serialize()),
+        };
+    }
 }
 
 export type TestSuiteConstructor =
@@ -288,37 +296,35 @@ type ITestSuiteMetadata = {
   };
 };
 
-export class TestSuite extends Observable {
-  public testModule: TestModule;
-  public testClassConstructor: TestSuiteConstructor;
-  public className: string;
-  public name: string;
-  public tests: Test[] = [];
+export class TestSuite extends Observable
+{
+    public testModule: TestModule;
+    public testClassConstructor: TestSuiteConstructor;
+    public className: string;
+    public name: string;
+    public tests: Test[] = [];
 
-  public isSequential = false;
-  public containsTestHooks = false;
+    public isSequential = false;
+    public containsTestHooks = false;
 
-  constructor(
-    testModule: TestModule,
+    constructor(testModule: TestModule,
     testClassConstructor: TestSuiteConstructor,
-  ) {
-    super();
-    this.testModule = testModule;
-    this.testClassConstructor = testClassConstructor;
-    this.className = testClassConstructor.name;
-    this.name = capitalCase(camelToNormal(this.className));
+    {
+        super();
+        this.testModule = testModule;
+        this.testClassConstructor = testClassConstructor;
+        this.className = testClassConstructor.name;
+        this.name = capitalCase(camelToNormal(this.className));
 
-    const testFunctionNames = Object.getOwnPropertyNames(
-      this.testClassConstructor.prototype,
-    );
+        const testFunctionNames = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
 
-    const noTestNames = [
-      "constructor",
-      "onSetup",
-      "onBeforeEach",
-      "onAfterEach",
-      "onTeardown",
-    ];
+        const hookNames = [
+            "constructor",
+            "onSetup",
+            "onBeforeEach",
+            "onAfterEach",
+            "onTeardown",
+        ];
 
     if (
       this.testClassConstructor.prototype.onBeforeEach ||
@@ -326,42 +332,33 @@ export class TestSuite extends Observable {
       this.testClassConstructor.prototype.onSetup ||
       this.testClassConstructor.prototype.onTeardown
     ) {
-      this.containsTestHooks = true;
-    }
+            this.containsTestHooks = true;
 
-    if (
-      this.testClassConstructor.prototype.__meta?.isSequential ||
-      this.containsTestHooks
-    ) {
-      this.isSequential = true;
+        if (this.testClassConstructor.isSequential || this.containsTestHooks)
+            this.isSequential = true;
     }
 
     for (const testFunctionName of testFunctionNames) {
       if (
-        !noTestNames.includes(testFunctionName) &&
-        typeof this.testClassConstructor.prototype[testFunctionName] ===
-          "function"
-      ) {
-        const testFunction = this.testClassConstructor
-          .prototype[testFunctionName] as UnitiumDebuggableMethod;
-        if (testFunction[unitiumDebugTestMetadataKey] === testFunctionName) {
-          this.testClassConstructor.prototype.__meta =
-            this.testClassConstructor.prototype.__meta ?? {};
-          this.testClassConstructor.prototype.__meta.debugTestName =
-            testFunctionName;
+        !noTestNames.includes(testFunctionName) || typeof testClassProto[testFunctionName] !== "function")
+                continue;
+
+            const test = new Test(this, testFunctionName);
+            if (test.isDebugTarget)
+                this.debugTarget = test;
+
+            this.tests.push(test);
         }
-
-        this.tests.push(new Test(this, testFunctionName));
-      }
     }
-  }
 
-  static isValid(constructorFct: any): constructorFct is TestSuiteConstructor {
-    return typeof constructorFct === "function" && constructorFct.prototype;
-  }
+    static isValid(constructorFct: any): constructorFct is TestSuiteConstructor
+    {
+        return typeof constructorFct === "function" && constructorFct.prototype;
+    }
 
-  async run(debugTest?: Test): Promise<void> {
-    this.runStarted.resolve();
+    async run(): Promise<void>
+    {
+        this.runStarted.resolve();
 
     if (this.isSequential) {
       const testInstance = new this.testClassConstructor();
@@ -381,160 +378,169 @@ export class TestSuite extends Observable {
         testRunPromises.push(this.runTestParallel(test));
       }
 
-      await Promise.all(testRunPromises);
+            await Promise.all(testRunPromises);
 
-      await this.testClassConstructor.onTeardown?.();
+            await this.testClassConstructor.onTeardown?.();
+        }
+
+        this.runCompleted.resolve();
     }
 
-    this.runCompleted.resolve();
-  }
-
-  async runTestParallel(test: Test): Promise<void> {
-    const testInstance = new this.testClassConstructor();
-    await testInstance.onBeforeEach?.(test);
-    await test.run(testInstance);
-    await testInstance.onAfterEach?.(test);
-  }
-
-  serialize(): SerializedTestSuite {
-    return {
-      class: this.className,
-      name: this.name,
-      tests: this.tests.map((test) => test.serialize()),
-    };
-  }
-}
-
-export class Test extends Observable {
-  public testSuite: TestSuite;
-  public testFunctionName: string;
-  public error?: TestError;
-  public description?: string;
-
-  constructor(
-    testSuite: TestSuite,
-    testFunctionName: string,
-  ) {
-    super();
-    this.testSuite = testSuite;
-    this.testFunctionName = testFunctionName;
-  }
-
-  get name(): string {
-    return titleCase(camelToNormal(this.testFunctionName));
-  }
-
-  async run(testFixture: any): Promise<void> {
-    this.runStarted.resolve();
-
-    try {
-      await testFixture[this.testFunctionName]();
-    } catch (e: Error | any) {
-      this.error = new TestError(e);
+    async runTestParallel(test: Test): Promise<void>
+    {
+        const testInstance = new this.testClassConstructor();
+        await testInstance.onBeforeEach?.(test);
+        await test.run(testInstance);
+        await testInstance.onAfterEach?.(test);
     }
 
-    this.runCompleted.resolve();
-  }
+    serialize(): SerializedTestSuite
+    {
+        return {
+            class: this.className,
+            name: this.name,
+            tests: this.tests.map((test) => test.serialize()),
+        };
+    }
+}
 
-  serialize(): SerializedTest {
-    let status;
-    if (!this.runCompleted.isResolved) {
-      status = "None";
-    } else {
-      status = this.error ? "Fail" : "Pass";
+export class Test extends Observable
+{
+    public testSuite: TestSuite;
+    public testFunctionName: string;
+    public error?: TestError;
+    public description?: string;
+
+    public isDebugTarget: boolean;
+
+    constructor(testSuite: TestSuite, testFunctionName: string)
+    {
+        super();
+        this.testSuite = testSuite;
+        this.testFunctionName = testFunctionName;
     }
 
-    return {
-      method: this.testFunctionName,
-      name: this.name,
-      description: this.description,
-      status: status as "None" | "Fail" | "Pass",
-      error: this.error,
-    };
-  }
+    get name(): string
+    {
+        return titleCase(camelToNormal(this.testFunctionName));
+    }
+
+    async run(testFixture: any): Promise<void>
+    {
+        this.runStarted.resolve();
+
+        try
+        {
+            await testFixture[this.testFunctionName]();
+        } catch (e: Error | any)
+        {
+            this.error = new TestError(e);
+        }
+
+        this.runCompleted.resolve();
+    }
+
+    serialize(): SerializedTest
+    {
+        let status;
+        if (!this.runCompleted.isResolved)
+            status = "None";
+        else
+            status = this.error ? "Fail" : "Pass";
+
+        return {
+            method: this.testFunctionName,
+            name: this.name,
+            description: this.description,
+            status: status as "None" | "Fail" | "Pass",
+            error: this.error,
+        };
+    }
 }
 
-export class TestError extends Serializable {
-  private error: Error;
-  public actual: any;
-  public expected: any;
-  public name!: string;
-  public message!: string;
-  public stack!: string;
-  public sourceFile: string;
-  public fileLocation: SourceFileLocation;
+export class TestError extends Serializable
+{
+    private error: Error;
+    public actual: any;
+    public expected: any;
+    public name!: string;
+    public message!: string;
+    public stack!: string;
+    public sourceFile: string;
+    public fileLocation: SourceFileLocation;
 
-  constructor(error: Error) {
-    super();
-    this.error = error;
-    Object.assign(this, error);
-    this.name = error.name;
+    constructor(error: Error)
+    {
+        super();
+        this.error = error;
+        Object.assign(this, error);
+        this.name = error.name;
 
-    const stackLocation = parseStackLocation(error.stack);
-    this.sourceFile = stackLocation?.sourceFile ?? "";
-    this.fileLocation = stackLocation?.fileLocation ?? { line: 0, column: 0 };
-  }
+        const stackLocation = parseStackLocation(error.stack);
+        this.sourceFile = stackLocation?.sourceFile ?? "";
+        this.fileLocation = stackLocation?.fileLocation ?? { line: 0, column: 0 };
+    }
 
-  serialize(): SerializedTestError {
-    return {
-      error: this.error,
-      actual: this.actual,
-      expected: this.expected,
-      name: this.name,
-      message: this.message,
-      stack: this.stack,
-      sourceFile: this.sourceFile,
-      fileLocation: this.fileLocation,
-    };
-  }
+    serialize(): SerializedTestError
+    {
+        return {
+            error: this.error,
+            actual: this.actual,
+            expected: this.expected,
+            name: this.name,
+            message: this.message,
+            stack: this.stack,
+            sourceFile: this.sourceFile,
+            fileLocation: this.fileLocation,
+        };
+    }
 }
 
-function parseStackLocation(stack?: string): ParsedStackLocation | undefined {
-  if (!stack) {
+function parseStackLocation(stack?: string): ParsedStackLocation | undefined
+{
+    if (!stack)
+        return undefined;
+
+    for (const line of stack.split("\n"))
+    {
+        const frame = line.trim();
+
+        if (!frame.startsWith("at "))
+            continue;
+
+        const frameBody = frame.slice(3);
+        const location = frameBody.endsWith(")") && frameBody.includes("(")
+            ? frameBody.slice(frameBody.lastIndexOf("(") + 1, -1)
+            : frameBody;
+
+        const locationParts = /^(.*):(\d+):(\d+)$/.exec(location);
+
+        if (!locationParts || locationParts[1] === "native" || locationParts[1] === "unknown location")
+            continue;
+
+        return {
+            sourceFile: locationParts[1],
+            fileLocation: {
+                line: Number(locationParts[2]),
+                column: Number(locationParts[3]),
+            },
+        };
+    }
+
     return undefined;
-  }
-
-  for (const line of stack.split("\n")) {
-    const frame = line.trim();
-
-    if (!frame.startsWith("at ")) {
-      continue;
-    }
-
-    const frameBody = frame.slice(3);
-    const location = frameBody.endsWith(")") && frameBody.includes("(")
-      ? frameBody.slice(frameBody.lastIndexOf("(") + 1, -1)
-      : frameBody;
-
-    const locationParts = /^(.*):(\d+):(\d+)$/.exec(location);
-
-    if (
-      !locationParts || locationParts[1] === "native" ||
-      locationParts[1] === "unknown location"
-    ) {
-      continue;
-    }
-
-    return {
-      sourceFile: locationParts[1],
-      fileLocation: {
-        line: Number(locationParts[2]),
-        column: Number(locationParts[3]),
-      },
-    };
-  }
-
-  return undefined;
 }
 
-function camelToNormal(camelCaseString: string): string {
-  return camelCaseString.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+function camelToNormal(camelCaseString: string): string
+{
+    return camelCaseString.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 }
 
-function titleCase(text: string): string {
-  return text[0].toUpperCase() + text.slice(1).toLowerCase();
+function titleCase(text: string): string
+{
+    return text[0].toUpperCase() + text.slice(1).toLowerCase();
 }
 
-function capitalCase(text: string): string {
-  return text.split(" ").map((s) => titleCase(s)).join(" ");
+function capitalCase(text: string): string
+{
+    return text.split(" ").map((s) => titleCase(s)).join(" ");
 }
