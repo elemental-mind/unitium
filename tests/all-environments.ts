@@ -15,7 +15,7 @@ const testCommands = {
     },
     deno: {
         command: "deno",
-        args: ["run", "--config", "./distribution/deno/deno.json", "--no-lock", "--allow-read", "./distribution/deno/cli.ts", "--json", "./source"],
+        args: ["run", "--config", "./distribution/deno/deno.json", "--no-lock", "--allow-read", "--allow-env", "./distribution/deno/cli.ts", "--json", "./source"],
     },
 };
 
