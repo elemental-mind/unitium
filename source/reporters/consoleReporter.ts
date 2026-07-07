@@ -17,22 +17,35 @@ export class ConsoleReporter extends BaseReporter
     /**
     * Prints the final summary and per-test results.
     */
-  onTestRunEnd(): void {
-    console.log("Testing finished.");
+    onTestRunEnd(): void
+    {
+        console.log("Testing finished...");
 
-    const totalTestCount = this.specification.tests.length;
-    const failedTestCount =
-      this.specification.tests.filter((test) => test.error !== undefined)
-        .length;
+        console.log();
+        console.log("    Results    ");
+        console.log("---------------");
+        console.log();
 
-    if (failedTestCount === 0) {
-      console.log("All tests passed.");
-    } else {
-      console.log(`${failedTestCount} of ${totalTestCount} tests failed.`);
-    }
+        for (const module of this.specification.testModules)
+            this.printModuleResults(module);
 
-    for (const module of this.specification.testModules) {
-      this.printModuleResults(module);
+        const totalTestCount = this.specification.tests.length;
+        const failedTestCount = this.specification.tests.filter((test) => test.error !== undefined).length;
+
+        console.log();
+        console.log();
+        console.log("    Summary    ");
+        console.log("---------------");
+        console.log(`Pass:  ${totalTestCount - failedTestCount}`);
+        console.log(`Fail:  ${failedTestCount}`);
+        console.log("---------------");
+        console.log(`Total: ${totalTestCount}`);
+        console.log();
+
+        if (failedTestCount === 0)
+            console.log("🟢   All tests passed.");
+        else
+            console.log(`🔴   ${failedTestCount} of ${totalTestCount} tests failed.`);
     }
 
     protected printModuleResults(module: TestModule): void
