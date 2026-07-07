@@ -20,9 +20,9 @@ const nodeDistributionFolder = path.join(distributionFolder, "node");
 const npmPackageTemplatePath = path.join("configuration", "npm-package.json");
 const npmReleaseTSConfigPath = path.join("configuration", "tsconfig.npm-release.json");
 
-async function prepareRelease()
+async function build()
 {
-    console.log("Preparing release...");
+    console.log("Building...");
     console.log("Deleting old Node distribution folder...");
     await deleteOldNodeDistFolder();
     console.group("Compiling project...");
@@ -77,4 +77,4 @@ async function writeNodePackageJSON()
     );
 }
 
-prepareRelease();
+build();

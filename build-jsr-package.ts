@@ -18,9 +18,9 @@ const jsrDenoTemplatePath = path.join("configuration", "jsr-deno.json");
 const jsrPublishCommand = "deno publish";
 const jsrValidationCommand = `${jsrPublishCommand} --allow-dirty --dry-run`;
 
-async function prepareJSRRelease()
+async function build()
 {
-    console.log("Preparing JSR release...");
+    console.log("Preparing JSR build...");
     console.log("Deleting old Deno distribution folder...");
     await deleteOldDenoDistFolder();
     console.log("Preparing Deno distribution folder...");
@@ -110,4 +110,4 @@ async function readJSONFile<T>(filePath: string): Promise<T>
     return JSON.parse(await fs.readFile(filePath, "utf8"));
 }
 
-prepareJSRRelease();
+build();
