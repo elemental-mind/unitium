@@ -22,7 +22,7 @@
  * @module unitium_cli
  */
 
-import { ConsoleReporter, JSONReporter, RuntimeEnvironment, SoftwareSpecification, TestRunner } from "./runner-api.ts";
+import { JSONReporter, RuntimeEnvironment, SoftwareSpecification, StreamingConsoleReporter, TestRunner } from "./runner-api.ts";
 import type { BaseReporter, CliRuntimeAdapter } from "./runner-api.ts";
 import { cliHelpText, parseRuntimeArguments, type RuntimeRunnerOptions } from "./cli-api.ts";
 
@@ -72,7 +72,7 @@ class CLIRunner extends TestRunner
         else if (options.outputJSON)
             return [new JSONReporter(spec)];
         else
-            return [new ConsoleReporter(spec)];
+            return [new StreamingConsoleReporter(spec)];
     }
 }
 

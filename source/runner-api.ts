@@ -28,6 +28,7 @@ import type { SoftwareSpecification } from "./core/unitium.ts";
 
 export { SoftwareSpecification, TestRunner, URLSetSpecification } from "./core/unitium.ts";
 export { ConsoleReporter } from "./reporters/consoleReporter.ts";
+export { StreamingConsoleReporter } from "./reporters/streamingConsoleReporter.ts";
 export { JSONReporter } from "./reporters/jsonReporter.ts";
 export type { BaseReporter } from "./reporters/base.ts";
 export type { CliRuntimeAdapter };
