@@ -9,7 +9,7 @@ export class ConsoleReporter extends BaseReporter
     /**
     * Announces the start of a test run.
     */
-    onTestRunStart(): void
+    onTestRunnerStart(): void
     {
         console.log("Testing started...");
     }
@@ -17,7 +17,7 @@ export class ConsoleReporter extends BaseReporter
     /**
     * Prints the final summary and per-test results.
     */
-    onTestRunEnd(): void
+    onTestRunnerEnd(): void
     {
         console.log("Testing finished...");
 

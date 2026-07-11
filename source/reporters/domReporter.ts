@@ -9,9 +9,9 @@ export class DOMReporter extends EventBasedReporter
     private testDetailsElements: Map<Test, HTMLElement> = new Map();
     private testStatusElements: Map<Test, HTMLElement> = new Map();
 
-    onTestRunStart(): void
+    onTestRunnerStart(): void
     {
-        super.onTestRunStart();
+        super.onTestRunnerStart();
 
         if (document.getElementById("unitium-output"))
             for (const testModule of this.specification.testModules)

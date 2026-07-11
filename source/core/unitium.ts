@@ -102,7 +102,7 @@ export class TestRunner extends Awaitable
     {
         if (this.reporters)
             for (const reporter of this.reporters)
-                reporter.onTestRunStart();
+                reporter.onTestRunnerStart();
 
         const moduleRuns = [];
         for (const module of this.specification.testModules)
@@ -112,7 +112,7 @@ export class TestRunner extends Awaitable
 
         if (this.reporters)
             for (const reporter of this.reporters)
-                reporter.onTestRunEnd();
+                reporter.onTestRunnerEnd();
     }
 
     private async runDebugTest()

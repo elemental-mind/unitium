@@ -24,11 +24,11 @@ export abstract class BaseReporter
     /**
      * Hook that can be overridden to react before test modules start.
      */
-    onTestRunStart(): void { }
+    onTestRunnerStart(): void { }
     /**
      * Hook that can be overridden to react after test modules finish.
      */
-    onTestRunEnd(): void { }
+    onTestRunnerEnd(): void { }
 }
 
 /**
@@ -36,7 +36,7 @@ export abstract class BaseReporter
  */
 export abstract class EventBasedReporter extends BaseReporter
 {
-    onTestRunStart(): void
+    onTestRunnerStart(): void
     {
         for (const testModule of this.specification.testModules)
         {

@@ -13,30 +13,30 @@ type TerminalGlobal = typeof globalThis & {
  */
 export class StreamingConsoleReporter extends BaseReporter
 {
-    private readonly refreshIntervalMilliseconds: number;
-    private readonly startedAt = new Map<Test, number>();
-    private renderTimer?: ReturnType<typeof setInterval>;
+    private readonly refreshInterval: number;
+    private readonly testStartTimes = new Map<Test, number>();
+    private renderLoop?: ReturnType<typeof setInterval>;
     private renderedLineCount = 0;
 
-    constructor(specification: ConstructorParameters<typeof BaseReporter>[0], refreshIntervalMilliseconds = 100)
+    constructor(specification: ConstructorParameters<typeof BaseReporter>[0], refreshIntervalMs = 200)
     {
         super(specification);
-        this.refreshIntervalMilliseconds = refreshIntervalMilliseconds;
+        this.refreshInterval = refreshIntervalMs;
     }
 
-    onTestRunStart(): void
+    onTestRunnerStart(): void
     {
         if (!this.isInteractiveTerminal())
             return;
 
+        this.renderLoop = setInterval(() => this.render(), this.refreshInterval);
         this.render();
-        this.renderTimer = setInterval(() => this.render(), this.refreshIntervalMilliseconds);
     }
 
-    onTestRunEnd(): void
+    onTestRunnerEnd(): void
     {
-        if (this.renderTimer)
-            clearInterval(this.renderTimer);
+        if (this.renderLoop)
+            clearInterval(this.renderLoop);
 
         this.captureStartTimes();
 
@@ -66,8 +66,8 @@ export class StreamingConsoleReporter extends BaseReporter
     private captureStartTimes(): void
     {
         for (const test of this.specification.tests)
-            if (test.runStarted.isResolved && !this.startedAt.has(test))
-                this.startedAt.set(test, Date.now());
+            if (test.runStarted.isResolved && !this.testStartTimes.has(test))
+                this.testStartTimes.set(test, Date.now());
     }
 
     private createLines(): string[]
@@ -119,7 +119,7 @@ export class StreamingConsoleReporter extends BaseReporter
 
     private elapsedLabel(test: Test): string
     {
-        const startedAt = this.startedAt.get(test);
+        const startedAt = this.testStartTimes.get(test);
         if (startedAt === undefined || this.status(test) === "pending")
             return "";
 
