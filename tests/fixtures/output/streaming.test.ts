@@ -13,11 +13,12 @@ export class SequentialOutputTests
     async runsFor6Seconds()
     {
         await wait(6_000);
+        throw new Error("This is a failing test");
     }
 
     async runsFor2Seconds()
     {
-        await wait(3_000);
+        await wait(2_000);
     }
 }
 
