@@ -10,9 +10,9 @@ export class SequentialOutputTests
         await wait(1_000);
     }
 
-    async runsFor6Seconds()
+    async runsFor3Seconds()
     {
-        await wait(6_000);
+        await wait(3_000);
         throw new Error("This is a failing test");
     }
 
@@ -44,8 +44,8 @@ export class ParallelOutputTests
         await wait(3_000);
     }
 
-    async runsFor10Seconds()
+    async runsFor6Seconds()
     {
-        await wait(10_000);
+        await wait(6_000);
     }
 }
