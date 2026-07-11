@@ -7,7 +7,7 @@ export class ModuleParsingTests
     async shouldHandleEmptyTestModulesGracefully()
     {
         const results = await evaluateSpecIn("tests/fixtures/general/parsing/emptyModule.test.ts");
-        
+
         assert(results.testModules.length === 1);
         assert.deepStrictEqual(results.testSuites, []);
     }
@@ -22,6 +22,24 @@ export class ModuleParsingTests
         assert(arraysContainSameElements(resultsSingleExport.testSuites.map(suite => suite.className), ["FirstTest"]));
         assert(arraysContainSameElements(resultsMultipleExports.testSuites.map(suite => suite.className), ["FirstTest", "SecondTest"]));
     }
+
+    async shouldFormatCamelCaseTestNames()
+    {
+        const results = await evaluateSpecIn("tests/fixtures/general/parsing/difficultNames.test.ts");
+
+        const testNames = results.tests.map(test => test.name);
+
+        assert.deepStrictEqual(
+            testNames,
+            [
+                "Runs for 10 seconds",
+                "Test CLI runner working",
+                "Parses HTTP 2 response",
+                "Uses XML http request",
+                "Uses CLI with custom spacing",
+            ],
+        );
+    }
 }
 
 export class ExecutionModelTests
@@ -31,7 +49,7 @@ export class ExecutionModelTests
         const results = await evaluateSpecIn("tests/fixtures/general/execution/asyncParallel.test.ts");
 
         //@ts-ignore
-        assert.deepStrictEqual(results.testSuites[0].testClassConstructor.executionOrder, [3,2,1]);
+        assert.deepStrictEqual(results.testSuites[0].testClassConstructor.executionOrder, [3, 2, 1]);
     }
 }
 
@@ -41,9 +59,9 @@ export class AssertionDetectionTests
     {
         const results = await evaluateSpecIn("tests/fixtures/general/assertion/failing.test.ts");
 
-        assert(results.tests[0].error !== undefined);        
+        assert(results.tests[0].error !== undefined);
     }
-    
+
     async shouldNotRegisterErrorOnPassingTest()
     {
         const results = await evaluateSpecIn("tests/fixtures/general/assertion/passing.test.ts");

@@ -286,7 +286,7 @@ export class TestSuite extends Observable
         this.testModule = testModule;
         this.testClassConstructor = testClassConstructor;
         this.className = testClassConstructor.name;
-        this.name = capitalCase(camelToNormal(this.className));
+        this.name = capitalizeText(camelToNormal(this.className));
 
         const testFunctionNames = Object.getOwnPropertyNames(this.testClassConstructor.prototype);
 
@@ -400,7 +400,7 @@ export class Test extends Observable
 
     get name(): string
     {
-        return titleCase(camelToNormal(this.testFunctionName));
+        return ensureCapitalizedFirstLetter(camelToNormal(this.testFunctionName));
     }
 
     async run(testFixture: any): Promise<void>
@@ -510,15 +510,35 @@ function parseStackLocation(stack?: string): ParsedStackLocation | undefined
 
 function camelToNormal(camelCaseString: string): string
 {
-    return camelCaseString.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+    const spaceSeparatedString = camelCaseString
+        // Allow explicit word boundaries in test names: "usesCLI_withSpaces" becomes "usesCLI withSpaces".
+        .replace(/_+/g, " ")
+        // Split an acronym from the conventional word following it: "CLIRunner" becomes "CLI Runner".
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+        // Split regular camelCase boundaries. When lowercase letters or numbers are followed by an uppercase letter, introduce a space.
+        .replace(/([a-z\d])([A-Z])/g, "$1 $2")
+        // Insert spaces after letters and before numbers: "for10" becomes "for 10".
+        .replace(/([A-Za-z])(\d)/g, "$1 $2");
+
+    const caseNormalizedString = spaceSeparatedString
+        .split(" ")
+        .map(word => isUpperCaseAcronym(word) ? word : word.toLowerCase())
+        .join(" ");
+
+    return caseNormalizedString;
 }
 
-function titleCase(text: string): string
+function ensureCapitalizedFirstLetter(word: string): string
 {
-    return text[0].toUpperCase() + text.slice(1).toLowerCase();
+    return word[0].toUpperCase() + word.slice(1);
 }
 
-function capitalCase(text: string): string
+function capitalizeText(text: string): string
 {
-    return text.split(" ").map((s) => titleCase(s)).join(" ");
+    return text.split(" ").map(word => ensureCapitalizedFirstLetter(word)).join(" ");
+}
+
+function isUpperCaseAcronym(word: string): boolean
+{
+    return /^[A-Z]{2,}$/.test(word);
 }
