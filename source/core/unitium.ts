@@ -3,6 +3,7 @@ import type { IParallelTestSuiteStaticHooks, ISequentialTestSuiteMemberHooks } f
 import type { BaseReporter } from "../reporters/base.ts";
 
 export type TestRunStatus = "None" | "Fail" | "Pass";
+export type TestStatus = "pending" | "running" | "passed" | "failed";
 
 export type SerializedSoftwareSpecification = {
     modules: SerializedTestModule[];
@@ -387,6 +388,8 @@ export class Test extends Observable
     public testFunctionName: string;
     public error?: TestError;
     public description?: string;
+    public startTime?: number;
+    public endTime?: number;
 
     public isDebugTarget: boolean;
 
@@ -403,8 +406,19 @@ export class Test extends Observable
         return ensureCapitalizedFirstLetter(camelToNormal(this.testFunctionName));
     }
 
+    get status(): TestStatus
+    {
+        if (!this.runStarted.isResolved)
+            return "pending";
+        if (!this.runCompleted.isResolved)
+            return "running";
+
+        return this.error ? "failed" : "passed";
+    }
+
     async run(testFixture: any): Promise<void>
     {
+        this.startTime = Date.now();
         this.runStarted.resolve();
 
         try
@@ -415,6 +429,7 @@ export class Test extends Observable
             this.error = new TestError(e);
         }
 
+        this.endTime = Date.now();
         this.runCompleted.resolve();
     }
 
