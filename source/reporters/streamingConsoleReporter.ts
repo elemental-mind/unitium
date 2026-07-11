@@ -1,7 +1,6 @@
 import { BaseReporter } from "./base.ts";
-import { Test, TestError } from "../core/unitium.ts";
+import { Test } from "../core/unitium.ts";
 
-type TestStatus = "pending" | "running" | "passed" | "failed";
 type TerminalGlobal = typeof globalThis & {
     process?: { stdout?: { columns?: number; isTTY?: boolean; write(text: string): void; }; };
     Deno?: {
@@ -10,15 +9,29 @@ type TerminalGlobal = typeof globalThis & {
     };
 };
 
+type TestStatus = Test["status"];
+type SortedTests = Record<TestStatus, Test[]>;
+type TestReport = { tests: SortedTests, total: number; };
+
 /**
  * Stateful terminal reporter that continuously redraws the test list while a
  * run is in progress.
  */
 export class StreamingConsoleReporter extends BaseReporter
 {
+    private static readonly statusStyles: Record<TestStatus, { symbol: string; barColour: string; }> = {
+        pending: { symbol: "⚫", barColour: "\x1b[90m" },
+        running: { symbol: "🟡", barColour: "\x1b[33m" },
+        passed: { symbol: "🟢", barColour: "\x1b[32m" },
+        failed: { symbol: "🔴", barColour: "\x1b[31m" },
+    };
+
     private readonly refreshInterval: number;
-    private readonly testStartTimes = new Map<Test, number>();
-    private readonly testEndTimes = new Map<Test, number>();
+
+    private write!: (text: string) => void;
+    private isInteractiveTerminal!: boolean;
+    private terminalWidth!: number;
+
     private renderLoop?: ReturnType<typeof setInterval>;
     private renderedLineCount = 0;
 
@@ -26,17 +39,17 @@ export class StreamingConsoleReporter extends BaseReporter
     {
         super(specification);
         this.refreshInterval = refreshIntervalMs;
+
+        this.setupTerminal();
     }
 
     onTestRunnerStart(): void
     {
-        this.trackTestTimes();
-
-        if (!this.isInteractiveTerminal())
+        if (!this.isInteractiveTerminal)
             return;
 
-        this.renderLoop = setInterval(() => this.render(), this.refreshInterval);
         this.render();
+        this.renderLoop = setInterval(() => this.render(), this.refreshInterval);
     }
 
     onTestRunnerEnd(): void
@@ -44,43 +57,49 @@ export class StreamingConsoleReporter extends BaseReporter
         if (this.renderLoop)
             clearInterval(this.renderLoop);
 
-        if (this.isInteractiveTerminal())
+        this.render();
+        this.printErrors();
+    }
+
+    private setupTerminal()
+    {
+        const terminalGlobal = globalThis as TerminalGlobal;
+
+        this.isInteractiveTerminal = terminalGlobal.process?.stdout?.isTTY === true || terminalGlobal.Deno?.stdout.isTerminal() === true;
+
+        if (terminalGlobal.process?.stdout)
         {
-            this.render();
-            this.write("\n");
+            const stdout = terminalGlobal.process.stdout;
+            this.write = text => stdout.write(text);
+            this.terminalWidth = stdout.columns ?? 80;
+        }
+        else if (terminalGlobal.Deno)
+        {
+            const stdout = terminalGlobal.Deno.stdout;
+            const encoder = new TextEncoder();
+            this.write = text => stdout.writeSync(encoder.encode(text));
+
+            let width = 80;
+            try
+            {
+                width = terminalGlobal.Deno.consoleSize?.().columns ?? width;
+            }
+            catch { }
+            this.terminalWidth = width;
         }
         else
-            this.write(this.renderLines().join("\n") + "\n");
-
-        this.printErrors();
+        {
+            this.write = console.log;
+            this.terminalWidth = 80;
+        }
     }
 
     private render(): void
     {
-        const lines = this.renderLines();
-        const moveToFirstLine = this.renderedLineCount > 1 ? `\x1b[${this.renderedLineCount - 1}A` : "";
-        const clearPreviousFrame = this.renderedLineCount > 0 ? `\r${moveToFirstLine}\x1b[0J` : "";
+        const tests: SortedTests = { passed: [], failed: [], running: [], pending: [] };
+        const report = { tests, total: 0 };
 
-        this.write(clearPreviousFrame + lines.join("\n"));
-        this.renderedLineCount = lines.length;
-    }
-
-    private trackTestTimes(): void
-    {
-        for (const test of this.specification.tests)
-        {
-            void test.runStarted.then(() =>
-            {
-                this.testStartTimes.set(test, Date.now());
-                return test.runCompleted.then(() => this.testEndTimes.set(test, Date.now()));
-            });
-        }
-    }
-
-    private renderLines(): string[]
-    {
         const lines = [];
-
         for (const module of this.specification.testModules)
         {
             lines.push(this.moduleHeading(module.path));
@@ -90,58 +109,66 @@ export class StreamingConsoleReporter extends BaseReporter
                 lines.push(this.suiteHeading(suite.name, module.path));
 
                 for (const test of suite.tests)
-                    lines.push(`    ${this.statusLabel(test)} ${test.name}${this.elapsedLabel(test)}`);
+                {
+                    tests[test.status].push(test);
+                    report.total++;
+                    lines.push(`    ${StreamingConsoleReporter.statusStyles[test.status].symbol} ${test.name}${this.elapsedLabel(test)}`);
+                }
             }
         }
 
-        const passed = this.specification.tests.filter(test => this.status(test) === "passed").length;
-        const failed = this.specification.tests.filter(test => this.status(test) === "failed").length;
-        const running = this.specification.tests.filter(test => this.status(test) === "running").length;
-        const pending = this.specification.tests.length - passed - failed - running;
-        const completed = passed + failed;
-
         lines.push("");
-        lines.push(`Passed: ${passed}  Failed: ${failed}  Running: ${running}  Pending: ${pending}`);
-        lines.push(completed === this.specification.tests.length
-            ? this.resultMessage(failed, this.specification.tests.length)
-            : this.progressBar(passed, failed, running, pending));
-        return lines;
+        lines.push(`Passed: ${tests.passed.length}  Failed: ${tests.failed.length}  Running: ${tests.running.length}  Pending: ${tests.pending.length}`);
+
+        if (tests.running.length === 0 && tests.pending.length === 0)
+            lines.push(this.resultMessage(report));
+        else
+            lines.push(this.progressBar(report));
+
+        const moveToFirstLine = this.renderedLineCount > 1 ? `\x1b[${this.renderedLineCount - 1}A` : "";
+        const clearPreviousFrame = this.renderedLineCount > 0 ? `\r${moveToFirstLine}\x1b[0J` : "";
+
+        this.write(clearPreviousFrame + lines.join("\n"));
+        this.renderedLineCount = lines.length;
     }
 
-    private progressBar(passed: number, failed: number, running: number, pending: number): string
+    private progressBar(report: TestReport): string
     {
-        const width = Math.max(10, Math.min(40, this.terminalWidth() - 10));
-        const total = passed + failed + running + pending;
-        const segments = [
-            { count: passed, colour: "\x1b[32m" },
-            { count: failed, colour: "\x1b[31m" },
-            { count: running, colour: "\x1b[33m" },
-            { count: pending, colour: "\x1b[90m" },
-        ];
-        let allocatedWidth = 0;
-        let cumulativeCount = 0;
-        let bar = "";
+        const { tests, total } = report;
 
-        for (const segment of segments)
+        const barWidth = Math.max(10, Math.min(40, this.terminalWidth - 10));
+
+        //We calculate the bar width rounded down for each bar segment
+        let remainingBarWidth = barWidth;
+        let largestWidth = -1;
+        let largestWidthIndex = -1;
+        const barWidthPerStatus = Object.values(tests).map((testSet, index) =>
         {
-            cumulativeCount += segment.count;
-            const segmentEnd = Math.round(width * cumulativeCount / total);
-            const segmentWidth = segmentEnd - allocatedWidth;
-            if (segmentWidth > 0)
-                bar += `${segment.colour}${"█".repeat(segmentWidth)}\x1b[0m`;
-            allocatedWidth = segmentEnd;
-        }
+            let segmentWidth = Math.floor(testSet.length * barWidth / total);
+            if (segmentWidth > largestWidth)
+            {
+                largestWidth = segmentWidth;
+                largestWidthIndex = index;
+            }
+            remainingBarWidth -= segmentWidth;
+            return segmentWidth;
+        });
 
-        const percentage = Math.round((passed + failed) / total * 100);
+        //Because of rounding errors we need to add the remaining bar width to a segment. We add it to the largest segment.
+        barWidthPerStatus[largestWidthIndex] += remainingBarWidth;
 
-        return `[${bar}] ${percentage}%`;
+        const bar = Object.entries(tests)
+            .map(([status, width], index) => `${StreamingConsoleReporter.statusStyles[status as TestStatus].barColour}${"█".repeat(barWidthPerStatus[index])}\x1b[0m`)
+            .join("");
+
+        const completedPercentage = Math.round((tests.passed.length + tests.failed.length) / total * 100);
+
+        return `[${bar}] ${completedPercentage}%`;
     }
 
-    private resultMessage(failed: number, total: number): string
+    private resultMessage(report: TestReport): string
     {
-        return failed === 0
-            ? "🟢 All tests passed."
-            : `🔴 ${failed} of ${total} tests failed.`;
+        return report.tests.failed.length ? `🔴 ${report.tests.failed.length} of ${report.total} tests failed.` : "🟢 All tests passed.";
     }
 
     private moduleHeading(modulePath: string): string
@@ -163,93 +190,29 @@ export class StreamingConsoleReporter extends BaseReporter
         const path = modulePath.replace(/^file:\/\/\//, "");
         const title = `  ${suiteName}`;
         const pathLabel = `[${path}]`;
-        const padding = Math.max(3, this.terminalWidth() - title.length - pathLabel.length);
+        const padding = Math.max(3, this.terminalWidth - title.length - pathLabel.length);
 
         return title + " ".repeat(padding) + pathLabel;
     }
 
-    private terminalWidth(): number
-    {
-        const terminalGlobal = globalThis as TerminalGlobal;
-        if (terminalGlobal.process?.stdout?.columns)
-            return terminalGlobal.process.stdout.columns;
-
-        try
-        {
-            return terminalGlobal.Deno?.consoleSize?.().columns ?? 80;
-        }
-        catch
-        {
-            return 80;
-        }
-    }
-
-    private status(test: Test): TestStatus
-    {
-        if (test.runCompleted.isResolved)
-            return test.error ? "failed" : "passed";
-        if (test.runStarted.isResolved)
-            return "running";
-        return "pending";
-    }
-
-    private statusLabel(test: Test): string
-    {
-        switch (this.status(test))
-        {
-            case "pending": return "⚫";
-            case "running": return "🟡";
-            case "passed": return "🟢";
-            case "failed": return "🔴";
-        }
-    }
-
     private elapsedLabel(test: Test): string
     {
-        const startedAt = this.testStartTimes.get(test);
-        if (startedAt === undefined || this.status(test) === "pending")
-            return "";
+        if (test.startTime === undefined) return " (pending)";
 
-        const endedAt = this.testEndTimes.get(test) ?? Date.now();
-        return ` (${((endedAt - startedAt) / 1000).toFixed(1)}s)`;
+        const endTime = test.endTime ?? Date.now();
+        return ` (${((endTime - test.startTime) / 1000).toFixed(1)}s)`;
     }
 
     private printErrors(): void
     {
-        for (const test of this.specification.tests)
+        this.write("\n");
+
+        for (const failingTest of this.specification.tests.filter(test => test.error))
         {
-            if (!test.error)
-                continue;
+            const error = failingTest.error!;
+            const location = error.sourceFile ? ` --> "${error.sourceFile}:${error.fileLocation.line}:${error.fileLocation.column}"` : "";
 
-            this.write(`\n[x] ${test.name}\n  ${this.formatError(test.error)}\n`);
+            this.write(`\n[x] ${failingTest.name}\n  ${error.name}: ${error.message || "unknown"}${location}\n`);
         }
-    }
-
-    private formatError(error: TestError): string
-    {
-        const location = error.sourceFile
-            ? ` --> "${error.sourceFile}:${error.fileLocation.line}:${error.fileLocation.column}"`
-            : "";
-
-        return `${error.name}: ${error.message || "unknown"}${location}`;
-    }
-
-    private isInteractiveTerminal(): boolean
-    {
-        const terminalGlobal = globalThis as TerminalGlobal;
-        return terminalGlobal.process?.stdout?.isTTY === true
-            || terminalGlobal.Deno?.stdout.isTerminal() === true;
-    }
-
-    private write(text: string): void
-    {
-        const terminalGlobal = globalThis as TerminalGlobal;
-
-        if (terminalGlobal.process?.stdout)
-            terminalGlobal.process.stdout.write(text);
-        else if (terminalGlobal.Deno)
-            terminalGlobal.Deno.stdout.writeSync(new TextEncoder().encode(text));
-        else
-            console.log(text);
     }
 }
