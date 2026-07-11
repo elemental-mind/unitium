@@ -453,6 +453,8 @@ export class TestError extends Serializable
         this.error = error;
         Object.assign(this, error);
         this.name = error.name;
+        this.message = error.message;
+        this.stack = error.stack ?? "";
 
         const stackLocation = parseStackLocation(error.stack);
         this.sourceFile = stackLocation?.sourceFile ?? "";

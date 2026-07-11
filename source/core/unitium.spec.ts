@@ -72,6 +72,15 @@ export class AssertionDetectionTests
 
 export class ErrorStackParsingTests
 {
+    shouldPreserveErrorMessageAndStack()
+    {
+        const error = new Error("This is a failing test");
+        const testError = new TestError(error);
+
+        assert.strictEqual(testError.message, error.message);
+        assert.strictEqual(testError.stack, error.stack);
+    }
+
     parsesNodeUnixParenthesizedStack()
     {
         this.#assertParsedStackFrame(
